@@ -21,6 +21,10 @@ async function proxyHandler(
     if (incomingContentType) {
       headers.set("content-type", incomingContentType);
     }
+    const incomingDeviceId = request.headers.get("x-device-id");
+    if (incomingDeviceId) {
+      headers.set("x-device-id", incomingDeviceId);
+    }
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
     }

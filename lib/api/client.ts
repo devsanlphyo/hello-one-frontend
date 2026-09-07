@@ -1,7 +1,36 @@
+import { getOrCreateDeviceId } from "@/lib/device";
+
 /**
  * Centralized API Client for Next.js Frontend
  * Automatically routes requests through /api/proxy to forward httpOnly authentication cookies.
  */
+
+function buildHeaders(customHeaders?: HeadersInit, isMultipart = false): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (!isMultipart) {
+    headers["Content-Type"] = "application/json";
+  }
+  if (typeof window !== "undefined") {
+    const deviceId = getOrCreateDeviceId();
+    if (deviceId) {
+      headers["x-device-id"] = deviceId;
+    }
+  }
+  if (customHeaders) {
+    if (customHeaders instanceof Headers) {
+      customHeaders.forEach((val, key) => {
+        headers[key] = val;
+      });
+    } else if (Array.isArray(customHeaders)) {
+      customHeaders.forEach(([key, val]) => {
+        headers[key] = val;
+      });
+    } else {
+      Object.assign(headers, customHeaders);
+    }
+  }
+  return headers;
+}
 
 async function handleResponse<T>(res: Response): Promise<T> {
   let data: any;
@@ -14,7 +43,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
   if (!res.ok) {
     if (res.status === 401 && typeof window !== "undefined") {
-      // Redirect to login if unauthenticated / session expired
+      // Redirect to login if unauthenticated / session revoked
       window.location.href = `/auth/login?redirect=${encodeURIComponent(window.location.pathname)}`;
     }
 
@@ -40,10 +69,7 @@ export const apiClient = {
     const url = resolveUrl(endpoint);
     const res = await fetch(url, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...init?.headers,
-      },
+      headers: buildHeaders(init?.headers),
       ...init,
     });
     return handleResponse<T>(res);
@@ -53,10 +79,7 @@ export const apiClient = {
     const url = resolveUrl(endpoint);
     const res = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...init?.headers,
-      },
+      headers: buildHeaders(init?.headers),
       body: body !== undefined ? JSON.stringify(body) : undefined,
       ...init,
     });
@@ -67,10 +90,7 @@ export const apiClient = {
     const url = resolveUrl(endpoint);
     const res = await fetch(url, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...init?.headers,
-      },
+      headers: buildHeaders(init?.headers),
       body: body !== undefined ? JSON.stringify(body) : undefined,
       ...init,
     });
@@ -81,10 +101,7 @@ export const apiClient = {
     const url = resolveUrl(endpoint);
     const res = await fetch(url, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...init?.headers,
-      },
+      headers: buildHeaders(init?.headers),
       body: body !== undefined ? JSON.stringify(body) : undefined,
       ...init,
     });
@@ -95,10 +112,7 @@ export const apiClient = {
     const url = resolveUrl(endpoint);
     const res = await fetch(url, {
       method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        ...init?.headers,
-      },
+      headers: buildHeaders(init?.headers),
       ...init,
     });
     return handleResponse<T>(res);
@@ -108,13 +122,11 @@ export const apiClient = {
     const url = resolveUrl(endpoint);
     const res = await fetch(url, {
       method: "POST",
-      headers: {
-        // Omitting Content-Type allows browser to generate multipart boundary
-        ...init?.headers,
-      },
+      headers: buildHeaders(init?.headers, true),
       body: formData,
       ...init,
     });
     return handleResponse<T>(res);
   },
 };
+

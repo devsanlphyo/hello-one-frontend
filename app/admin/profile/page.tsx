@@ -50,8 +50,24 @@ import {
 import Link from "next/link";
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { fetchMyDevices, removeMyAvatar, uploadMyAvatar } from "@/lib/api/users";
-import { UserDeviceItem } from "@/lib/api/devices";
+import {
+  fetchMyDevices,
+  MyUserDeviceItem,
+  removeMyAvatar,
+  signOutDevice,
+  signOutOtherDevices,
+  uploadMyAvatar,
+} from "@/lib/api/users";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { getDeviceName, getOrCreateDeviceId } from "@/lib/device";
 
 export default function AdminProfilePage() {
@@ -60,10 +76,16 @@ export default function AdminProfilePage() {
   const [isUploading, setIsUploading] = useState(false);
 
   // Devices state
-  const [devices, setDevices] = useState<UserDeviceItem[]>([]);
+  const [devices, setDevices] = useState<MyUserDeviceItem[]>([]);
+  const [firstDeviceId, setFirstDeviceId] = useState<string | null>(null);
   const [loadingDevices, setLoadingDevices] = useState(false);
   const [currentDeviceId, setCurrentDeviceId] = useState("");
   const [currentDeviceName, setCurrentDeviceName] = useState("");
+
+  // Sign out other devices states
+  const [signingOutOthers, setSigningOutOthers] = useState(false);
+  const [signingOutId, setSigningOutId] = useState<string | null>(null);
+  const [confirmSignoutOthersOpen, setConfirmSignoutOthersOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -78,6 +100,12 @@ export default function AdminProfilePage() {
       const res = await fetchMyDevices();
       if (res.isSuccess && Array.isArray(res.devices)) {
         setDevices(res.devices);
+        if (res.firstDeviceId) {
+          setFirstDeviceId(res.firstDeviceId);
+        } else if (res.devices.length > 0) {
+          const first = res.devices.find((d) => d.isFirstDevice);
+          if (first) setFirstDeviceId(first.deviceId);
+        }
       }
     } catch {
       // ignore
@@ -91,6 +119,58 @@ export default function AdminProfilePage() {
       loadDevices();
     }
   }, [user]);
+
+  const isFirstDeviceCurrent = Boolean(
+    firstDeviceId && currentDeviceId && firstDeviceId === currentDeviceId,
+  );
+
+  const otherActiveDevices = devices.filter(
+    (d) => d.deviceId !== currentDeviceId && d.status !== "revoked",
+  );
+
+  const handleSignOutOtherDevices = async () => {
+    try {
+      setSigningOutOthers(true);
+      const res = await signOutOtherDevices();
+      if (res.isSuccess) {
+        toast.success(res.message || "All other devices have been signed out.");
+        await loadDevices();
+      } else {
+        toast.error(res.message || "Failed to sign out other devices.");
+      }
+    } catch (err: any) {
+      toast.error(
+        err?.message || "Only the first registered device can sign out other devices.",
+      );
+    } finally {
+      setSigningOutOthers(false);
+      setConfirmSignoutOthersOpen(false);
+    }
+  };
+
+  const handleSignOutSingleDevice = async (
+    targetDeviceId: string,
+    targetDeviceName?: string | null,
+  ) => {
+    try {
+      setSigningOutId(targetDeviceId);
+      const res = await signOutDevice(targetDeviceId);
+      if (res.isSuccess) {
+        toast.success(
+          res.message || `Device "${targetDeviceName || targetDeviceId}" signed out.`,
+        );
+        await loadDevices();
+      } else {
+        toast.error(res.message || "Failed to sign out device.");
+      }
+    } catch (err: any) {
+      toast.error(
+        err?.message || "Only the first registered device can sign out other devices.",
+      );
+    } finally {
+      setSigningOutId(null);
+    }
+  };
 
   const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return "Never";
@@ -461,6 +541,49 @@ export default function AdminProfilePage() {
                   </CardHeader>
 
                   <CardContent className="space-y-3">
+                    {/* Primary Device status or restriction notice */}
+                    {!loadingDevices && devices.length > 0 && (
+                      <>
+                        {isFirstDeviceCurrent ? (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl border border-primary/20 bg-primary/5">
+                            <div className="flex items-center gap-2 text-xs">
+                              <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                              <div>
+                                <span className="font-bold text-foreground">Primary Device</span>
+                                <p className="text-[11px] text-muted-foreground">
+                                  You are on your first registered device and can sign out other devices.
+                                </p>
+                              </div>
+                            </div>
+
+                            {otherActiveDevices.length > 0 && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => setConfirmSignoutOthersOpen(true)}
+                                disabled={signingOutOthers}
+                                className="h-7 text-xs gap-1.5 shrink-0 self-start sm:self-auto"
+                              >
+                                {signingOutOthers ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <LogOut className="h-3 w-3" />
+                                )}
+                                Sign Out Others ({otherActiveDevices.length})
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400 text-xs">
+                            <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600" />
+                            <span className="text-[11px] leading-tight">
+                              <strong>Sign-out restriction:</strong> Signing out other devices can only be performed from your <strong>first registered device</strong>.
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+
                     {loadingDevices ? (
                       <div className="space-y-2">
                         <div className="h-16 rounded-xl bg-muted/40 animate-pulse" />
@@ -497,6 +620,8 @@ export default function AdminProfilePage() {
                       <div className="space-y-2.5">
                         {devices.map((dev) => {
                           const isCurrent = dev.deviceId === currentDeviceId;
+                          const isFirst = dev.deviceId === firstDeviceId || dev.isFirstDevice;
+                          const isRevoked = dev.status === "revoked" || dev.status === "rejected";
                           const isMobile =
                             dev.deviceName?.toLowerCase().includes("mobile") ||
                             dev.deviceName?.toLowerCase().includes("iphone") ||
@@ -509,6 +634,8 @@ export default function AdminProfilePage() {
                               className={`rounded-xl border p-3.5 transition-all ${
                                 isCurrent
                                   ? "border-emerald-500/40 bg-emerald-500/5 ring-1 ring-emerald-500/20"
+                                  : isRevoked
+                                  ? "border-border/50 bg-muted/20 opacity-70"
                                   : "border-border/80 bg-card hover:bg-muted/20"
                               }`}
                             >
@@ -518,6 +645,8 @@ export default function AdminProfilePage() {
                                     className={`p-2 rounded-lg shrink-0 mt-0.5 ${
                                       isCurrent
                                         ? "bg-emerald-500/10 text-emerald-600"
+                                        : isRevoked
+                                        ? "bg-muted text-muted-foreground/50"
                                         : "bg-muted text-muted-foreground"
                                     }`}
                                   >
@@ -532,6 +661,15 @@ export default function AdminProfilePage() {
                                       {isCurrent && (
                                         <Badge className="text-[9px] bg-emerald-500 text-white border-0 font-bold px-1.5 py-0 h-4">
                                           Current Session
+                                        </Badge>
+                                      )}
+                                      {isFirst && (
+                                        <Badge
+                                          variant="outline"
+                                          className="text-[9px] bg-primary/10 text-primary border-primary/30 font-semibold px-1.5 py-0 h-4 gap-1"
+                                        >
+                                          <ShieldCheck className="h-2.5 w-2.5" />
+                                          1st Device
                                         </Badge>
                                       )}
                                     </div>
@@ -552,7 +690,7 @@ export default function AdminProfilePage() {
                                   </div>
                                 </div>
 
-                                <div className="shrink-0">
+                                <div className="flex flex-col items-end gap-1.5 shrink-0">
                                   {dev.status === "approved" && (
                                     <Badge
                                       variant="outline"
@@ -571,13 +709,33 @@ export default function AdminProfilePage() {
                                       Pending
                                     </Badge>
                                   )}
-                                  {(dev.status === "rejected" || dev.status === "revoked") && (
+                                  {isRevoked && (
                                     <Badge
                                       variant="outline"
                                       className="text-[9px] bg-destructive/10 text-destructive border-destructive/30 font-semibold capitalize"
                                     >
                                       {dev.status}
                                     </Badge>
+                                  )}
+
+                                  {/* Individual sign out button if caller is on 1st device and device is not current and not revoked */}
+                                  {isFirstDeviceCurrent && !isCurrent && !isRevoked && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      disabled={signingOutId === dev.deviceId}
+                                      onClick={() =>
+                                        handleSignOutSingleDevice(dev.deviceId, dev.deviceName)
+                                      }
+                                      className="h-6 px-1.5 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10 gap-1 font-medium"
+                                    >
+                                      {signingOutId === dev.deviceId ? (
+                                        <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                      ) : (
+                                        <LogOut className="h-2.5 w-2.5" />
+                                      )}
+                                      Sign out
+                                    </Button>
                                   )}
                                 </div>
                               </div>
@@ -593,6 +751,53 @@ export default function AdminProfilePage() {
           </div>
         </main>
       </SidebarInset>
+
+      {/* Confirmation Dialog: Sign Out Other Devices */}
+      <AlertDialog
+        open={confirmSignoutOthersOpen}
+        onOpenChange={setConfirmSignoutOthersOpen}
+      >
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-base">
+              <LogOut className="h-4 w-4 text-destructive" />
+              Sign Out All Other Devices?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs space-y-2">
+              <p>
+                This action will immediately terminate active sessions on all{" "}
+                <strong>{otherActiveDevices.length}</strong> other device(s)
+                connected to your administrator account.
+              </p>
+              <p className="text-muted-foreground">
+                Your current session on this primary device will remain active.
+                Revoked devices will require administrative approval to sign in
+                again.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={signingOutOthers}
+              className="text-xs h-8"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSignOutOtherDevices}
+              disabled={signingOutOthers}
+              className="text-xs h-8 bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-1.5"
+            >
+              {signingOutOthers ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <LogOut className="h-3.5 w-3.5" />
+              )}
+              Sign Out Others
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   );
 }

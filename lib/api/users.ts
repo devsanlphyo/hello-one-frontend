@@ -6,6 +6,7 @@ import type {
   UserStatus,
 } from "@/app/admin/users/types/user.type";
 import { apiClient } from "./client";
+import type { UserDeviceItem } from "./devices";
 
 export async function fetchUsers(
   params: QueryUsersParams = {},
@@ -124,12 +125,39 @@ export async function removeUserAvatar(
   }>(`/users/${id}/avatar`);
 }
 
-export async function fetchMyDevices(): Promise<{
-  isSuccess: boolean;
-  devices: import("./devices").UserDeviceItem[];
-}> {
-  return apiClient.get<{
-    isSuccess: boolean;
-    devices: import("./devices").UserDeviceItem[];
-  }>("/users/me/devices");
+export interface MyUserDeviceItem extends UserDeviceItem {
+  isFirstDevice?: boolean;
 }
+
+export interface MyDevicesResponse {
+  isSuccess: boolean;
+  devices: MyUserDeviceItem[];
+  firstDeviceId?: string | null;
+}
+
+export async function fetchMyDevices(): Promise<MyDevicesResponse> {
+  return apiClient.get<MyDevicesResponse>("/users/me/devices");
+}
+
+export async function signOutOtherDevices(): Promise<{
+  isSuccess: boolean;
+  message: string;
+  revokedCount?: number;
+}> {
+  return apiClient.post<{
+    isSuccess: boolean;
+    message: string;
+    revokedCount?: number;
+  }>("/users/me/devices/signout-others");
+}
+
+export async function signOutDevice(targetDeviceId: string): Promise<{
+  isSuccess: boolean;
+  message: string;
+}> {
+  return apiClient.post<{
+    isSuccess: boolean;
+    message: string;
+  }>(`/users/me/devices/${targetDeviceId}/signout`);
+}
+
