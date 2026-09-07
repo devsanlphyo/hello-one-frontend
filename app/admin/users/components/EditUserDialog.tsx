@@ -78,9 +78,9 @@ export function EditUserDialog({
       return;
     }
 
-    const maxSize = 2 * 1024 * 1024; // 2MB standard size
+    const maxSize = 10 * 1024 * 1024; // 10MB standard size
     if (file.size > maxSize) {
-      toast.error("Image file size exceeds 2MB standard limit.");
+      toast.error("Image file size exceeds 10MB standard limit.");
       e.target.value = "";
       return;
     }
@@ -181,7 +181,7 @@ export function EditUserDialog({
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium text-foreground">Profile Photo</p>
-            <p className="text-[11px] text-muted-foreground">Standard 2MB (JPG, PNG, WEBP)</p>
+            <p className="text-[11px] text-muted-foreground">Standard 10MB (JPG, PNG, WEBP)</p>
           </div>
           <div className="flex items-center gap-1.5">
             <input

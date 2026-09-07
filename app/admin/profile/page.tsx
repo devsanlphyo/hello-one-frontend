@@ -264,7 +264,7 @@ export default function AdminProfilePage() {
                           </Button>
                         )}
                         <span className="text-[11px] text-muted-foreground">
-                          JPG, PNG, WEBP (Standard max 2MB)
+                          JPG, PNG, WEBP (Standard max 10MB)
                         </span>
                       </div>
                     </div>
