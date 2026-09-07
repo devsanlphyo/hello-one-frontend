@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   BookMarked,
   BookOpen,
   Building2,
   GraduationCap,
+  Laptop,
   LogOut,
   Settings,
   User,
@@ -28,15 +30,43 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAppSettings } from "@/context/AppSettingsContext";
 import { useAuth } from "@/context/AuthContext";
+import { fetchPendingDevicesCount } from "@/lib/api/devices";
 
 interface AdminSidebarProps {
-  current?: "dashboard" | "users" | "schools" | "classes" | "subjects" | "profile" | "settings";
+  current?:
+    | "dashboard"
+    | "users"
+    | "schools"
+    | "classes"
+    | "subjects"
+    | "devices"
+    | "profile"
+    | "settings";
 }
 
 export function AdminSidebar({ current }: AdminSidebarProps) {
   const pathname = usePathname();
   const { logoUrl } = useAppSettings();
   const { user, logout } = useAuth();
+  const [pendingDevicesCount, setPendingDevicesCount] = useState<number>(0);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadCount = async () => {
+      try {
+        const res = await fetchPendingDevicesCount();
+        if (mounted && res.isSuccess) {
+          setPendingDevicesCount(res.pendingCount || 0);
+        }
+      } catch {
+        // silent fallback
+      }
+    };
+    loadCount();
+    return () => {
+      mounted = false;
+    };
+  }, [pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -49,6 +79,14 @@ export function AdminSidebar({ current }: AdminSidebarProps) {
       icon: Users,
       key: "users",
       isActive: current === "users" || pathname.startsWith("/admin/users"),
+    },
+    {
+      title: "Device Approvals",
+      href: "/admin/devices",
+      icon: Laptop,
+      key: "devices",
+      isActive: current === "devices" || pathname.startsWith("/admin/devices"),
+      badge: pendingDevicesCount > 0 ? pendingDevicesCount : null,
     },
     {
       title: "Schools Management",
@@ -117,9 +155,14 @@ export function AdminSidebar({ current }: AdminSidebarProps) {
                   <SidebarMenuItem key={item.key}>
                     <SidebarMenuButton
                       render={
-                        <Link href={item.href} className="flex items-center gap-2.5">
-                          <Icon className="h-4 w-4" />
-                          <span>{item.title}</span>
+                        <Link href={item.href} className="flex items-center gap-2.5 w-full">
+                          <Icon className="h-4 w-4 shrink-0" />
+                          <span className="flex-1 truncate">{item.title}</span>
+                          {item.badge && (
+                            <Badge className="ml-auto text-[10px] px-1.5 py-0 h-4 bg-amber-500 text-white border-0 font-bold group-data-[collapsible=icon]:hidden">
+                              {item.badge}
+                            </Badge>
+                          )}
                         </Link>
                       }
                       isActive={item.isActive}

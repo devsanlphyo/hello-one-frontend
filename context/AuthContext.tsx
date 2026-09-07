@@ -24,7 +24,16 @@ interface AuthContextValue {
   role: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ isSuccess: boolean; message?: string }>;
+  login: (
+    email: string,
+    password: string,
+    deviceMeta?: { deviceId?: string; deviceName?: string },
+  ) => Promise<{
+    isSuccess: boolean;
+    requiresApproval?: boolean;
+    deviceStatus?: string;
+    message?: string;
+  }>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
   updateUserAvatar: (avatarUrl: string | null) => void;
@@ -81,12 +90,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (
     email: string,
     password: string,
-  ): Promise<{ isSuccess: boolean; message?: string }> => {
+    deviceMeta?: { deviceId?: string; deviceName?: string },
+  ): Promise<{
+    isSuccess: boolean;
+    requiresApproval?: boolean;
+    deviceStatus?: string;
+    message?: string;
+  }> => {
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email,
+          password,
+          deviceId: deviceMeta?.deviceId,
+          deviceName: deviceMeta?.deviceName,
+        }),
       });
 
       const data = await res.json();
@@ -94,6 +114,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return {
           isSuccess: false,
           message: data.message || "Failed to sign in",
+        };
+      }
+
+      if (data.requiresApproval) {
+        return {
+          isSuccess: false,
+          requiresApproval: true,
+          deviceStatus: data.deviceStatus || "pending",
+          message:
+            data.message ||
+            "This device is awaiting administrator approval before you can sign in.",
         };
       }
 

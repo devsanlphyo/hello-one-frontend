@@ -5,8 +5,12 @@ import {
   CheckCircle2,
   ImageOff,
   Laptop,
+  Lock,
   Moon,
+  Save,
   Settings,
+  ShieldAlert,
+  ShieldCheck,
   Sun,
   Trash2,
   Upload,
@@ -36,6 +40,7 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -47,10 +52,24 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { useAppSettings } from "@/context/AppSettingsContext";
-import { removeLogo, uploadLogo } from "@/lib/api/settings";
+import {
+  fetchSettings,
+  removeLogo,
+  updateSecuritySettings,
+  uploadLogo,
+} from "@/lib/api/settings";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"];
 const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
+
+const AVAILABLE_ROLES = [
+  { key: "admin", label: "Admin", desc: "Always bypassed for system administrators", required: true },
+  { key: "director", label: "Director", desc: "School executive & director leadership" },
+  { key: "headmaster", label: "Headmaster", desc: "Academic head & campus supervisors" },
+  { key: "officer", label: "Officer", desc: "Administrative staff & admissions" },
+  { key: "teacher", label: "Teacher", desc: "Classroom instructors & educators" },
+  { key: "assistant", label: "Assistant", desc: "Teaching assistants & support staff" },
+];
 
 const THEME_OPTIONS = [
   {
@@ -86,9 +105,36 @@ export default function SettingsPage() {
   const [removing, setRemoving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Security & Login Approvals state ──────────────────────────────
+  const [requireDeviceApproval, setRequireDeviceApproval] = useState<boolean>(true);
+  const [bypassRoles, setBypassRoles] = useState<string[]>(["admin"]);
+  const [savingSecurity, setSavingSecurity] = useState(false);
+  const [securityLoaded, setSecurityLoaded] = useState(false);
+
   // Theme hydration guard — next-themes resolves after mount
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    // Load security settings from backend
+    const loadSettings = async () => {
+      try {
+        const res = await fetchSettings();
+        if (res.isSuccess && res.data) {
+          if (typeof res.data.requireDeviceApproval === "boolean") {
+            setRequireDeviceApproval(res.data.requireDeviceApproval);
+          }
+          if (Array.isArray(res.data.bypassApprovalRoles)) {
+            setBypassRoles(res.data.bypassApprovalRoles);
+          }
+        }
+      } catch {
+        // fallback to defaults
+      } finally {
+        setSecurityLoaded(true);
+      }
+    };
+    loadSettings();
+  }, []);
 
   // Cleanup blob preview URLs on unmount / file change
   useEffect(() => {
@@ -173,6 +219,32 @@ export default function SettingsPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const handleToggleRoleBypass = (roleKey: string) => {
+    if (roleKey === "admin") return;
+    setBypassRoles((prev) =>
+      prev.includes(roleKey)
+        ? prev.filter((r) => r !== roleKey)
+        : [...prev, roleKey],
+    );
+  };
+
+  const handleSaveSecurity = async () => {
+    setSavingSecurity(true);
+    try {
+      const res = await updateSecuritySettings({
+        requireDeviceApproval,
+        bypassApprovalRoles: bypassRoles,
+      });
+      if (res.isSuccess) {
+        toast.success(res.message || "Security settings updated successfully");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update security settings");
+    } finally {
+      setSavingSecurity(false);
+    }
+  };
+
   // Active logo preview — staged file takes priority over live logo
   const activePreview = previewUrl ?? logoUrl;
 
@@ -206,7 +278,7 @@ export default function SettingsPage() {
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  Manage application branding and appearance preferences.
+                  Manage application branding, login permissions, and appearance preferences.
                 </p>
               </div>
             </div>
@@ -343,7 +415,138 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* ── Section 2: Appearance / Theme ──────────────────── */}
+            {/* ── Section 2: Security & Login Approvals ───────────── */}
+            <Card className="shadow-xs">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  Security &amp; Device Approvals
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Control first login permissions, device authorization, and role exemption rules.
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="space-y-5">
+                {/* Master switch */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border bg-muted/20">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-foreground">
+                        Require Admin Approval for First Login &amp; New Devices
+                      </span>
+                      {requireDeviceApproval ? (
+                        <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                          Active Policy
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground">
+                          Disabled
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground max-w-xl">
+                      When enabled, any user signing in from an unrecognized browser or device must be approved by an administrator before access is granted.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={requireDeviceApproval}
+                    onClick={() => setRequireDeviceApproval((prev) => !prev)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
+                      requireDeviceApproval ? "bg-primary" : "bg-input"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        requireDeviceApproval ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Role Bypass Selection */}
+                <div className="space-y-3">
+                  <div className="space-y-0.5">
+                    <label className="text-xs font-semibold text-foreground">
+                      Roles That Bypass Approval Automatically
+                    </label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Selected roles will be automatically approved upon first login without triggering a pending request.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                    {AVAILABLE_ROLES.map((role) => {
+                      const isChecked = bypassRoles.includes(role.key) || role.required;
+                      const isRequired = !!role.required;
+
+                      return (
+                        <div
+                          key={role.key}
+                          onClick={() => !isRequired && handleToggleRoleBypass(role.key)}
+                          className={`flex items-start gap-3 p-3 rounded-lg border text-left transition-all ${
+                            isRequired
+                              ? "bg-muted/40 border-border cursor-default opacity-85"
+                              : "cursor-pointer hover:border-primary/50 hover:bg-muted/30"
+                          } ${isChecked ? "border-primary/40 bg-primary/5" : "bg-card"}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            disabled={isRequired}
+                            onChange={() => !isRequired && handleToggleRoleBypass(role.key)}
+                            className="h-4 w-4 mt-0.5 rounded border-gray-300 text-primary focus:ring-primary accent-primary cursor-pointer"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-semibold text-foreground">
+                                {role.label}
+                              </span>
+                              {isRequired && (
+                                <Badge variant="secondary" className="text-[9px] px-1 py-0 h-3.5 gap-0.5 font-normal">
+                                  <Lock className="h-2.5 w-2.5" />
+                                  Required
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
+                              {role.desc}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Save button */}
+                <div className="flex items-center justify-end pt-2">
+                  <Button
+                    size="sm"
+                    onClick={handleSaveSecurity}
+                    disabled={savingSecurity || !securityLoaded}
+                    className="text-xs h-8 gap-1.5"
+                  >
+                    {savingSecurity ? (
+                      <>
+                        <span className="animate-spin inline-block h-3 w-3 border-2 border-current border-t-transparent rounded-full" />
+                        Saving Policy...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-3.5 w-3.5" />
+                        Save Security Policy
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* ── Section 3: Appearance / Theme ──────────────────── */}
             <Card className="shadow-xs">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
