@@ -91,6 +91,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // 5. Settings page ("/settings")
+  if (pathname.startsWith("/settings")) {
+    if (!isAuthenticated) {
+      const loginUrl = new URL("/auth/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+    return NextResponse.next();
+  }
+
   return NextResponse.next();
 }
 

@@ -123,3 +123,13 @@ export async function removeUserAvatar(
     user: User;
   }>(`/users/${id}/avatar`);
 }
+
+export async function fetchMyDevices(): Promise<{
+  isSuccess: boolean;
+  devices: import("./devices").UserDeviceItem[];
+}> {
+  return apiClient.get<{
+    isSuccess: boolean;
+    devices: import("./devices").UserDeviceItem[];
+  }>("/users/me/devices");
+}

@@ -32,23 +32,76 @@ import {
   Building2,
   Calendar,
   Camera,
+  Clock,
+  Globe,
   KeyRound,
+  Laptop,
   Loader2,
   LogOut,
   Mail,
+  RefreshCw,
+  ShieldAlert,
   ShieldCheck,
+  Smartphone,
   Trash2,
   Upload,
   User as UserIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useEffect } from "react";
 import { toast } from "sonner";
-import { removeMyAvatar, uploadMyAvatar } from "@/lib/api/users";
+import { fetchMyDevices, removeMyAvatar, uploadMyAvatar } from "@/lib/api/users";
+import { UserDeviceItem } from "@/lib/api/devices";
+import { getDeviceName, getOrCreateDeviceId } from "@/lib/device";
 
 export default function AdminProfilePage() {
   const { user, role, isLoading, logout, updateUserAvatar } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Devices state
+  const [devices, setDevices] = useState<UserDeviceItem[]>([]);
+  const [loadingDevices, setLoadingDevices] = useState(false);
+  const [currentDeviceId, setCurrentDeviceId] = useState("");
+  const [currentDeviceName, setCurrentDeviceName] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCurrentDeviceId(getOrCreateDeviceId());
+      setCurrentDeviceName(getDeviceName());
+    }
+  }, []);
+
+  const loadDevices = async () => {
+    setLoadingDevices(true);
+    try {
+      const res = await fetchMyDevices();
+      if (res.isSuccess && Array.isArray(res.devices)) {
+        setDevices(res.devices);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingDevices(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      loadDevices();
+    }
+  }, [user]);
+
+  const formatDate = (dateStr?: string | null) => {
+    if (!dateStr) return "Never";
+    const d = new Date(dateStr);
+    return d.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -377,6 +430,162 @@ export default function AdminProfilePage() {
                         </span>
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
+
+                {/* Logged-in Devices Card */}
+                <Card className="shadow-xs">
+                  <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <Laptop className="h-4 w-4 text-primary" />
+                        Logged-in Devices
+                      </CardTitle>
+                      <CardDescription className="text-xs mt-0.5">
+                        Devices currently or recently authorized to access your administrator account.
+                      </CardDescription>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={loadDevices}
+                      disabled={loadingDevices}
+                      className="h-8 w-8 p-0"
+                      title="Refresh devices"
+                    >
+                      <RefreshCw
+                        className={`h-3.5 w-3.5 ${loadingDevices ? "animate-spin" : ""}`}
+                      />
+                    </Button>
+                  </CardHeader>
+
+                  <CardContent className="space-y-3">
+                    {loadingDevices ? (
+                      <div className="space-y-2">
+                        <div className="h-16 rounded-xl bg-muted/40 animate-pulse" />
+                        <div className="h-16 rounded-xl bg-muted/40 animate-pulse" />
+                      </div>
+                    ) : devices.length === 0 ? (
+                      <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-3.5 flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600">
+                            <Laptop className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-foreground">
+                                {currentDeviceName || "Current Web Browser"}
+                              </span>
+                              <Badge className="text-[9px] bg-emerald-500 text-white border-0 font-bold px-1.5 py-0 h-4">
+                                Current
+                              </Badge>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                              Device ID: {currentDeviceId ? currentDeviceId.slice(0, 16) : "Active"}...
+                            </p>
+                          </div>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] text-emerald-600 border-emerald-500/30 font-semibold"
+                        >
+                          Authorized
+                        </Badge>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {devices.map((dev) => {
+                          const isCurrent = dev.deviceId === currentDeviceId;
+                          const isMobile =
+                            dev.deviceName?.toLowerCase().includes("mobile") ||
+                            dev.deviceName?.toLowerCase().includes("iphone") ||
+                            dev.deviceName?.toLowerCase().includes("android");
+                          const DeviceIcon = isMobile ? Smartphone : Laptop;
+
+                          return (
+                            <div
+                              key={dev.id}
+                              className={`rounded-xl border p-3.5 transition-all ${
+                                isCurrent
+                                  ? "border-emerald-500/40 bg-emerald-500/5 ring-1 ring-emerald-500/20"
+                                  : "border-border/80 bg-card hover:bg-muted/20"
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-3 min-w-0">
+                                  <div
+                                    className={`p-2 rounded-lg shrink-0 mt-0.5 ${
+                                      isCurrent
+                                        ? "bg-emerald-500/10 text-emerald-600"
+                                        : "bg-muted text-muted-foreground"
+                                    }`}
+                                  >
+                                    <DeviceIcon className="h-4 w-4" />
+                                  </div>
+
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-xs font-bold text-foreground truncate">
+                                        {dev.deviceName || "Web Client"}
+                                      </span>
+                                      {isCurrent && (
+                                        <Badge className="text-[9px] bg-emerald-500 text-white border-0 font-bold px-1.5 py-0 h-4">
+                                          Current Session
+                                        </Badge>
+                                      )}
+                                    </div>
+
+                                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1 font-mono flex-wrap">
+                                      {dev.ipAddress && (
+                                        <span className="flex items-center gap-1">
+                                          <Globe className="h-2.5 w-2.5" />
+                                          {dev.ipAddress}
+                                        </span>
+                                      )}
+                                      <span>&bull;</span>
+                                      <span className="flex items-center gap-1">
+                                        <Clock className="h-2.5 w-2.5" />
+                                        Last Login: {formatDate(dev.lastLoginAt || dev.createdAt)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="shrink-0">
+                                  {dev.status === "approved" && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[9px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1 font-semibold"
+                                    >
+                                      <ShieldCheck className="h-2.5 w-2.5" />
+                                      Approved
+                                    </Badge>
+                                  )}
+                                  {dev.status === "pending" && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[9px] bg-amber-500/10 text-amber-500 border-amber-500/30 gap-1 font-semibold"
+                                    >
+                                      <ShieldAlert className="h-2.5 w-2.5" />
+                                      Pending
+                                    </Badge>
+                                  )}
+                                  {(dev.status === "rejected" || dev.status === "revoked") && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[9px] bg-destructive/10 text-destructive border-destructive/30 font-semibold capitalize"
+                                    >
+                                      {dev.status}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
