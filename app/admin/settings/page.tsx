@@ -64,11 +64,11 @@ const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 
 const AVAILABLE_ROLES = [
   { key: "admin", label: "Admin", desc: "Always bypassed for system administrators", required: true },
-  { key: "director", label: "Director", desc: "School executive & director leadership" },
-  { key: "headmaster", label: "Headmaster", desc: "Academic head & campus supervisors" },
-  { key: "officer", label: "Officer", desc: "Administrative staff & admissions" },
-  { key: "teacher", label: "Teacher", desc: "Classroom instructors & educators" },
-  { key: "assistant", label: "Assistant", desc: "Teaching assistants & support staff" },
+  { key: "director", label: "Director", desc: "School executive & director leadership", required: false },
+  { key: "headmaster", label: "Headmaster", desc: "Academic head & campus supervisors", required: false },
+  { key: "officer", label: "Officer", desc: "Administrative staff & admissions", required: false },
+  { key: "teacher", label: "Teacher", desc: "Classroom instructors & educators", required: false },
+  { key: "assistant", label: "Assistant", desc: "Teaching assistants & support staff", required: false },
 ];
 
 const THEME_OPTIONS = [
@@ -480,8 +480,8 @@ export default function SettingsPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                     {AVAILABLE_ROLES.map((role) => {
-                      const isChecked = bypassRoles.includes(role.key) || role.required;
-                      const isRequired = !!role.required;
+                      const isChecked = Boolean(bypassRoles?.includes(role.key) || role.required);
+                      const isRequired = Boolean(role.required);
 
                       return (
                         <div
