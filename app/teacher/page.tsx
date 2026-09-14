@@ -10,6 +10,7 @@ import {
   Building,
   Sparkles,
   CalendarRange,
+  BookMarked,
 } from "lucide-react";
 import { StaffPortalLayout, NavTabItem } from "@/components/portal/StaffPortalLayout";
 import { StaffProfileTab } from "@/components/portal/StaffProfileTab";
@@ -20,6 +21,7 @@ import { fetchClasses, ClassItem } from "@/lib/api/classes";
 import { fetchSubjects, Subject } from "@/lib/api/subjects";
 import { CheckInOutWidget } from "@/components/attendance/CheckInOutWidget";
 import { StaffLeaveRequestView } from "@/components/leaves/StaffLeaveRequestView";
+import { TeacherLessonPlanView } from "@/components/lesson-plans/TeacherLessonPlanView";
 
 export default function TeacherPage() {
   const { user } = useAuth();
@@ -50,6 +52,7 @@ export default function TeacherPage() {
 
   const tabs: NavTabItem[] = [
     { id: "attendance", label: "Check In / Out", icon: Clock },
+    { id: "lesson-plans", label: "Lesson Plans", icon: BookMarked },
     { id: "leaves", label: "Leave Requests", icon: CalendarRange },
     { id: "schedule", label: "My Schedule", icon: CalendarCheck },
     { id: "classes", label: "My Classes", icon: BookOpen, badge: classes.length },
@@ -66,6 +69,9 @@ export default function TeacherPage() {
     >
       {/* ── TAB: ATTENDANCE CHECK-IN / CHECK-OUT ── */}
       {activeTab === "attendance" && <CheckInOutWidget />}
+
+      {/* ── TAB: LESSON PLANS (FLOWCHART PROCESS) ── */}
+      {activeTab === "lesson-plans" && <TeacherLessonPlanView />}
 
       {/* ── TAB: LEAVE REQUESTS ── */}
       {activeTab === "leaves" && <StaffLeaveRequestView />}
