@@ -10,10 +10,12 @@ import {
   Sparkles,
   Search,
   CalendarCheck,
+  CalendarRange,
 } from "lucide-react";
 import { StaffPortalLayout, NavTabItem } from "@/components/portal/StaffPortalLayout";
 import { StaffProfileTab } from "@/components/portal/StaffProfileTab";
 import { MonitorAttendanceView } from "@/components/attendance/MonitorAttendanceView";
+import { DirectorLeaveRequestsView } from "@/components/leaves/DirectorLeaveRequestsView";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -52,6 +54,7 @@ export default function DirectorPage() {
 
   const tabs: NavTabItem[] = [
     { id: "overview", label: "Executive Overview", icon: Sparkles },
+    { id: "leaves", label: "Leave Requests", icon: CalendarRange },
     { id: "attendance", label: "Monitor Attendances", icon: CalendarCheck },
     { id: "schools", label: "Schools & Campuses", icon: Building2, badge: schools.length },
     { id: "faculty", label: "Faculty Directory", icon: Users, badge: faculty.length },
@@ -74,6 +77,9 @@ export default function DirectorPage() {
       {activeTab === "attendance" && (
         <MonitorAttendanceView allowCrossCampus={true} />
       )}
+
+      {/* ── TAB: LEAVE REQUESTS (Matching Flow 3) ── */}
+      {activeTab === "leaves" && <DirectorLeaveRequestsView />}
 
       {/* ── TAB 1: EXECUTIVE OVERVIEW ── */}
       {activeTab === "overview" && (

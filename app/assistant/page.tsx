@@ -8,6 +8,7 @@ import {
   Clock,
   CheckCircle2,
   Building,
+  CalendarRange,
 } from "lucide-react";
 import { StaffPortalLayout, NavTabItem } from "@/components/portal/StaffPortalLayout";
 import { StaffProfileTab } from "@/components/portal/StaffProfileTab";
@@ -16,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
 import { fetchClasses, ClassItem } from "@/lib/api/classes";
 import { CheckInOutWidget } from "@/components/attendance/CheckInOutWidget";
+import { StaffLeaveRequestView } from "@/components/leaves/StaffLeaveRequestView";
 
 export default function AssistantPage() {
   const { user } = useAuth();
@@ -36,6 +38,7 @@ export default function AssistantPage() {
 
   const tabs: NavTabItem[] = [
     { id: "attendance", label: "Check In / Out", icon: Clock },
+    { id: "leaves", label: "Leave Requests", icon: CalendarRange },
     { id: "tasks", label: "Daily Support Tasks", icon: ListTodo },
     { id: "classes", label: "Assigned Classes", icon: BookOpen, badge: classes.length },
     { id: "profile", label: "Profile & Workstation", icon: UserIcon },
@@ -50,6 +53,9 @@ export default function AssistantPage() {
     >
       {/* ── TAB: CHECK IN / CHECK OUT ── */}
       {activeTab === "attendance" && <CheckInOutWidget />}
+
+      {/* ── TAB: LEAVE REQUESTS ── */}
+      {activeTab === "leaves" && <StaffLeaveRequestView />}
 
       {/* ── TAB 1: DAILY SUPPORT TASKS ── */}
       {activeTab === "tasks" && (

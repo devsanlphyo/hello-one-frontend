@@ -10,11 +10,13 @@ import {
   Building,
   GraduationCap,
   Sparkles,
+  CalendarRange,
 } from "lucide-react";
 import { StaffPortalLayout, NavTabItem } from "@/components/portal/StaffPortalLayout";
 import { StaffProfileTab } from "@/components/portal/StaffProfileTab";
 import { MonitorAttendanceView } from "@/components/attendance/MonitorAttendanceView";
 import { CheckInOutWidget } from "@/components/attendance/CheckInOutWidget";
+import { CampusLeaveRequestsView } from "@/components/leaves/CampusLeaveRequestsView";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
@@ -49,6 +51,7 @@ export default function HeadmasterPage() {
 
   const tabs: NavTabItem[] = [
     { id: "attendance", label: "Monitor Attendances", icon: CalendarCheck },
+    { id: "leaves", label: "Staff Leave Requests", icon: CalendarRange },
     { id: "faculty", label: "Faculty & Shifts", icon: Users, badge: teachers.length },
     { id: "classes", label: "Campus Classes", icon: BookOpen, badge: classes.length },
     { id: "checkin", label: "My Check In / Out", icon: Clock },
@@ -65,6 +68,11 @@ export default function HeadmasterPage() {
       {/* ── TAB 1: ATTENDANCE MONITORING (Matching Image 2) ── */}
       {activeTab === "attendance" && (
         <MonitorAttendanceView initialSchoolId={user?.schoolId ?? undefined} allowCrossCampus={false} />
+      )}
+
+      {/* ── TAB: STAFF LEAVE REQUESTS (Matching Flow 2) ── */}
+      {activeTab === "leaves" && (
+        <CampusLeaveRequestsView schoolId={user?.schoolId ?? undefined} />
       )}
 
       {/* ── TAB 2: FACULTY & SHIFTS ── */}
