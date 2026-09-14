@@ -1,14 +1,12 @@
 "use client";
 
 import {
-  AlertCircle,
   Calendar,
   CheckCircle2,
   Clock,
   Info,
   LogIn,
   LogOut,
-  MapPin,
   RefreshCw,
 } from "lucide-react";
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -121,7 +119,6 @@ export function CheckInOutWidget() {
 
   const isCheckedIn = Boolean(data?.isCheckedIn);
   const isCheckedOut = Boolean(data?.isCheckedOut);
-  const isWithinShift = data?.isWithinShift !== false;
   const shift = data?.shift;
   const attendance = data?.attendance;
   const user = data?.user;
@@ -156,52 +153,8 @@ export function CheckInOutWidget() {
         </Button>
       </div>
 
-      {/* ── NOT SHIFT TIME STATE (Flowchart 1) ── */}
-      {!isWithinShift && !isCheckedIn && (
-        <Card className="border-amber-500/30 bg-amber-500/5 shadow-xs">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2 text-amber-600">
-              <AlertCircle className="h-5 w-5 shrink-0" />
-              <CardTitle className="text-sm font-bold">
-                Outside Scheduled Shift Hours
-              </CardTitle>
-            </div>
-            <CardDescription className="text-xs text-amber-700/80">
-              Check-in is currently unavailable because you are outside your
-              designated shift window.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-xs">
-            <div className="p-3 rounded-lg bg-background border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <span className="font-semibold text-foreground block">
-                  {shift?.name || "Assigned Shift"}
-                </span>
-                <span className="text-muted-foreground text-[11px]">
-                  Scheduled Hours:{" "}
-                  {shift?.formattedHours || "09:00 AM - 12:00 PM"}
-                </span>
-              </div>
-              <Badge
-                variant="outline"
-                className="text-amber-600 border-amber-500/30 self-start sm:self-center"
-              >
-                Opens 30m before start
-              </Badge>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Current local time:{" "}
-              <span className="font-semibold text-foreground">
-                {currentTime}
-              </span>
-              . Please return during your shift window to check in.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       {/* ── MAIN HERO CARD (Matching Image 3) ── */}
-      <Card className="shadow-xs border-emerald-500/20 bg-gradient-to-b from-emerald-500/10 via-emerald-500/5 to-card/60 backdrop-blur-xs relative overflow-hidden">
+      <Card className="shadow-xs border-emerald-500/20 bg-linear-to-b from-emerald-500/10 via-emerald-500/5 to-card/60 backdrop-blur-xs relative overflow-hidden">
         <CardContent className="p-5 sm:p-6 space-y-5">
           {/* Top user badge & status */}
           <div className="flex items-center justify-between gap-2">
@@ -247,9 +200,7 @@ export function CheckInOutWidget() {
                 ? "You have completed your shift attendance for today."
                 : isCheckedIn
                   ? "You are checked in for today."
-                  : isWithinShift
-                    ? "You are ready to check in for your workday."
-                    : "Your scheduled workday shift has not started yet."}
+                  : "You are ready to check in for your workday."}
             </p>
           </div>
 
@@ -301,36 +252,13 @@ export function CheckInOutWidget() {
               <Button
                 type="button"
                 onClick={handleCheckIn}
-                disabled={
-                  isPending || (!isWithinShift && user?.role === "teacher")
-                }
-                className="w-full py-6 text-sm font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={isPending}
+                className="w-full py-6 text-sm font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60"
               >
                 <LogIn className="h-4 w-4" />
                 {isPending ? "Checking In..." : "Check In"}
               </Button>
             )}
-          </div>
-
-          {/* Location Row (Matching Image 3) */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border/60 text-xs">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <MapPin className="h-4 w-4 text-primary shrink-0" />
-              <div className="truncate">
-                <span className="text-muted-foreground text-[10px] uppercase block font-semibold">
-                  Location
-                </span>
-                <span className="font-semibold text-foreground truncate block">
-                  {user?.schoolName || "Main Branch Campus"}
-                </span>
-              </div>
-            </div>
-            <Badge
-              variant="outline"
-              className="text-[10px] text-emerald-600 border-emerald-500/30 shrink-0"
-            >
-              Verified
-            </Badge>
           </div>
         </CardContent>
       </Card>

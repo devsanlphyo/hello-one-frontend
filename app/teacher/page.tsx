@@ -11,10 +11,20 @@ import {
   Sparkles,
   CalendarRange,
   BookMarked,
+  MessageSquare,
 } from "lucide-react";
-import { StaffPortalLayout, NavTabItem } from "@/components/portal/StaffPortalLayout";
+import {
+  StaffPortalLayout,
+  NavTabItem,
+} from "@/components/portal/StaffPortalLayout";
 import { StaffProfileTab } from "@/components/portal/StaffProfileTab";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
 import { fetchClasses, ClassItem } from "@/lib/api/classes";
@@ -22,10 +32,11 @@ import { fetchSubjects, Subject } from "@/lib/api/subjects";
 import { CheckInOutWidget } from "@/components/attendance/CheckInOutWidget";
 import { StaffLeaveRequestView } from "@/components/leaves/StaffLeaveRequestView";
 import { TeacherLessonPlanView } from "@/components/lesson-plans/TeacherLessonPlanView";
+import { FeedView } from "@/components/feed/FeedView";
 
 export default function TeacherPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<string>("attendance");
+  const [activeTab, setActiveTab] = useState<string>("feed");
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -51,12 +62,10 @@ export default function TeacherPage() {
   }, []);
 
   const tabs: NavTabItem[] = [
+    { id: "feed", label: "School Feed", icon: MessageSquare },
     { id: "attendance", label: "Check In / Out", icon: Clock },
     { id: "lesson-plans", label: "Lesson Plans", icon: BookMarked },
     { id: "leaves", label: "Leave Requests", icon: CalendarRange },
-    { id: "schedule", label: "My Schedule", icon: CalendarCheck },
-    { id: "classes", label: "My Classes", icon: BookOpen, badge: classes.length },
-    { id: "curriculum", label: "Curriculum", icon: GraduationCap, badge: subjects.length },
     { id: "profile", label: "Profile & Workstation", icon: UserIcon },
   ];
 
@@ -67,6 +76,9 @@ export default function TeacherPage() {
       activeTab={activeTab}
       onTabChange={setActiveTab}
     >
+      {/* ── TAB: SCHOOL FEED (PROCESS FLOW) ── */}
+      {activeTab === "feed" && <FeedView />}
+
       {/* ── TAB: ATTENDANCE CHECK-IN / CHECK-OUT ── */}
       {activeTab === "attendance" && <CheckInOutWidget />}
 
@@ -80,9 +92,12 @@ export default function TeacherPage() {
       {activeTab === "schedule" && (
         <div className="space-y-6 animate-in fade-in-50 duration-200">
           <div>
-            <h1 className="text-xl font-bold tracking-tight">Instructor Daily Schedule</h1>
+            <h1 className="text-xl font-bold tracking-tight">
+              Instructor Daily Schedule
+            </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Welcome back, Teacher {user?.fullName}. Here is your instructional timetable for today.
+              Welcome back, Teacher {user?.fullName}. Here is your instructional
+              timetable for today.
             </p>
           </div>
 
@@ -91,8 +106,13 @@ export default function TeacherPage() {
             <Card className="md:col-span-2 shadow-xs">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-bold">Today's Class Sessions</CardTitle>
-                  <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30 bg-emerald-500/10">
+                  <CardTitle className="text-sm font-bold">
+                    Today's Class Sessions
+                  </CardTitle>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] text-emerald-600 border-emerald-500/30 bg-emerald-500/10"
+                  >
                     Semester Term 1
                   </Badge>
                 </div>
@@ -135,14 +155,20 @@ export default function TeacherPage() {
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2">
                         <Clock className="h-3.5 w-3.5 text-primary shrink-0" />
-                        <span className="font-semibold text-foreground">{item.time}</span>
+                        <span className="font-semibold text-foreground">
+                          {item.time}
+                        </span>
                       </div>
-                      <h4 className="font-bold text-sm text-foreground pt-1">{item.title}</h4>
+                      <h4 className="font-bold text-sm text-foreground pt-1">
+                        {item.title}
+                      </h4>
                       <p className="text-[11px] text-muted-foreground">
                         {item.class} &bull; {item.room}
                       </p>
                     </div>
-                    <span className={`text-[11px] self-start sm:self-center ${item.statusColor}`}>
+                    <span
+                      className={`text-[11px] self-start sm:self-center ${item.statusColor}`}
+                    >
                       {item.status}
                     </span>
                   </div>
@@ -156,13 +182,17 @@ export default function TeacherPage() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-emerald-600" />
-                    <CardTitle className="text-xs font-bold text-foreground">Teacher Summary</CardTitle>
+                    <CardTitle className="text-xs font-bold text-foreground">
+                      Teacher Summary
+                    </CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2 text-xs text-muted-foreground">
                   <div className="flex justify-between border-b pb-1.5">
                     <span>Enrolled Classes:</span>
-                    <span className="font-bold text-foreground">{classes.length}</span>
+                    <span className="font-bold text-foreground">
+                      {classes.length}
+                    </span>
                   </div>
                   <div className="flex justify-between border-b pb-1.5">
                     <span>Campus School:</span>
@@ -172,14 +202,18 @@ export default function TeacherPage() {
                   </div>
                   <div className="flex justify-between pt-1">
                     <span>Status:</span>
-                    <span className="text-emerald-600 font-semibold">Active Faculty</span>
+                    <span className="text-emerald-600 font-semibold">
+                      Active Faculty
+                    </span>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="shadow-xs">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-bold">Faculty Office Hours</CardTitle>
+                  <CardTitle className="text-xs font-bold">
+                    Faculty Office Hours
+                  </CardTitle>
                   <CardDescription className="text-[11px]">
                     Drop-in academic tutoring and student office hours.
                   </CardDescription>
@@ -198,7 +232,9 @@ export default function TeacherPage() {
       {activeTab === "classes" && (
         <div className="space-y-4 animate-in fade-in-50 duration-200">
           <div>
-            <h2 className="text-lg font-bold tracking-tight">My Teaching Classes</h2>
+            <h2 className="text-lg font-bold tracking-tight">
+              My Teaching Classes
+            </h2>
             <p className="text-xs text-muted-foreground">
               Courses and active grade sections assigned across term curriculum.
             </p>
@@ -210,12 +246,18 @@ export default function TeacherPage() {
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h4 className="text-sm font-bold text-foreground">{c.name}</h4>
+                      <h4 className="text-sm font-bold text-foreground">
+                        {c.name}
+                      </h4>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Grade {c.gradeLevel} &bull; Academic Year: {c.academicYear}
+                        Grade {c.gradeLevel} &bull; Academic Year:{" "}
+                        {c.academicYear}
                       </p>
                     </div>
-                    <Badge variant="secondary" className="text-[10px] capitalize">
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px] capitalize"
+                    >
                       {c.status}
                     </Badge>
                   </div>
@@ -224,7 +266,9 @@ export default function TeacherPage() {
                       <Building className="h-3.5 w-3.5 text-primary" />
                       {c.school?.name || "Campus Unit"}
                     </span>
-                    <span className="font-semibold text-emerald-600">Enrolled &amp; Active</span>
+                    <span className="font-semibold text-emerald-600">
+                      Enrolled &amp; Active
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -242,7 +286,9 @@ export default function TeacherPage() {
       {activeTab === "curriculum" && (
         <div className="space-y-4 animate-in fade-in-50 duration-200">
           <div>
-            <h2 className="text-lg font-bold tracking-tight">Curriculum &amp; Syllabi</h2>
+            <h2 className="text-lg font-bold tracking-tight">
+              Curriculum &amp; Syllabi
+            </h2>
             <p className="text-xs text-muted-foreground">
               Core academic syllabus guidelines and course codes.
             </p>
@@ -260,7 +306,9 @@ export default function TeacherPage() {
                       {s.status}
                     </Badge>
                   </div>
-                  <h4 className="text-xs font-bold text-foreground">{s.name}</h4>
+                  <h4 className="text-xs font-bold text-foreground">
+                    {s.name}
+                  </h4>
                   <p className="text-[11px] text-muted-foreground">
                     Approved department subject
                   </p>

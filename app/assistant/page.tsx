@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Building,
   CalendarRange,
+  MessageSquare,
 } from "lucide-react";
 import { StaffPortalLayout, NavTabItem } from "@/components/portal/StaffPortalLayout";
 import { StaffProfileTab } from "@/components/portal/StaffProfileTab";
@@ -18,10 +19,11 @@ import { useAuth } from "@/context/AuthContext";
 import { fetchClasses, ClassItem } from "@/lib/api/classes";
 import { CheckInOutWidget } from "@/components/attendance/CheckInOutWidget";
 import { StaffLeaveRequestView } from "@/components/leaves/StaffLeaveRequestView";
+import { FeedView } from "@/components/feed/FeedView";
 
 export default function AssistantPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<string>("attendance");
+  const [activeTab, setActiveTab] = useState<string>("feed");
   const [classes, setClasses] = useState<ClassItem[]>([]);
 
   useEffect(() => {
@@ -37,6 +39,7 @@ export default function AssistantPage() {
   }, []);
 
   const tabs: NavTabItem[] = [
+    { id: "feed", label: "Campus Feed", icon: MessageSquare },
     { id: "attendance", label: "Check In / Out", icon: Clock },
     { id: "leaves", label: "Leave Requests", icon: CalendarRange },
     { id: "tasks", label: "Daily Support Tasks", icon: ListTodo },
@@ -51,6 +54,9 @@ export default function AssistantPage() {
       activeTab={activeTab}
       onTabChange={setActiveTab}
     >
+      {/* ── TAB: CAMPUS FEED ── */}
+      {activeTab === "feed" && <FeedView />}
+
       {/* ── TAB: CHECK IN / CHECK OUT ── */}
       {activeTab === "attendance" && <CheckInOutWidget />}
 

@@ -12,6 +12,7 @@ import {
   Sparkles,
   CalendarRange,
   BookMarked,
+  MessageSquare,
 } from "lucide-react";
 import { StaffPortalLayout, NavTabItem } from "@/components/portal/StaffPortalLayout";
 import { StaffProfileTab } from "@/components/portal/StaffProfileTab";
@@ -19,6 +20,7 @@ import { MonitorAttendanceView } from "@/components/attendance/MonitorAttendance
 import { CheckInOutWidget } from "@/components/attendance/CheckInOutWidget";
 import { CampusLeaveRequestsView } from "@/components/leaves/CampusLeaveRequestsView";
 import { CampusLessonPlansView } from "@/components/lesson-plans/CampusLessonPlansView";
+import { FeedView } from "@/components/feed/FeedView";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
@@ -27,7 +29,7 @@ import { fetchTeachersWithShifts, TeacherWithShift } from "@/lib/api/shifts";
 
 export default function HeadmasterPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<string>("attendance");
+  const [activeTab, setActiveTab] = useState<string>("feed");
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [teachers, setTeachers] = useState<TeacherWithShift[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -52,6 +54,7 @@ export default function HeadmasterPage() {
   }, []);
 
   const tabs: NavTabItem[] = [
+    { id: "feed", label: "Campus Feed", icon: MessageSquare },
     { id: "attendance", label: "Monitor Attendances", icon: CalendarCheck },
     { id: "lesson-plans", label: "Lesson Plans", icon: BookMarked },
     { id: "leaves", label: "Staff Leave Requests", icon: CalendarRange },
@@ -68,6 +71,9 @@ export default function HeadmasterPage() {
       activeTab={activeTab}
       onTabChange={setActiveTab}
     >
+      {/* ── TAB: CAMPUS FEED ── */}
+      {activeTab === "feed" && <FeedView />}
+
       {/* ── TAB 1: ATTENDANCE MONITORING (Matching Image 2) ── */}
       {activeTab === "attendance" && (
         <MonitorAttendanceView initialSchoolId={user?.schoolId ?? undefined} allowCrossCampus={false} />

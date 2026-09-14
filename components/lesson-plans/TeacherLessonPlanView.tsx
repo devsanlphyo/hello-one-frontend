@@ -20,7 +20,13 @@ import {
   MessageSquare,
   AlertTriangle,
 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +43,9 @@ import {
 } from "@/lib/api/lesson-plans";
 
 export function TeacherLessonPlanView() {
-  const [dailyStatus, setDailyStatus] = useState<DailyLessonPlanStatus | null>(null);
+  const [dailyStatus, setDailyStatus] = useState<DailyLessonPlanStatus | null>(
+    null,
+  );
   const [plans, setPlans] = useState<LessonPlanItem[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -67,12 +75,15 @@ export function TeacherLessonPlanView() {
     try {
       setLoading(true);
       setError(null);
-      const [statusData, plansData, classesRes, subjectsRes] = await Promise.all([
-        fetchDailyLessonPlanStatus(date),
-        fetchMyLessonPlans({ status: statusFilter !== "all" ? statusFilter : undefined }),
-        fetchClasses(),
-        fetchSubjects(),
-      ]);
+      const [statusData, plansData, classesRes, subjectsRes] =
+        await Promise.all([
+          fetchDailyLessonPlanStatus(date),
+          fetchMyLessonPlans({
+            status: statusFilter !== "all" ? statusFilter : undefined,
+          }),
+          fetchClasses(),
+          fetchSubjects(),
+        ]);
 
       setDailyStatus(statusData);
       setPlans(Array.isArray(plansData) ? plansData : []);
@@ -142,7 +153,8 @@ export function TeacherLessonPlanView() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this pending lesson plan?")) return;
+    if (!confirm("Are you sure you want to delete this pending lesson plan?"))
+      return;
     try {
       setDeletingId(id);
       await deleteLessonPlan(id);
@@ -175,12 +187,16 @@ export function TeacherLessonPlanView() {
             <h2 className="text-xl font-bold tracking-tight text-foreground">
               Lesson Plan Management
             </h2>
-            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+            <Badge
+              variant="outline"
+              className="text-xs bg-primary/10 text-primary border-primary/20"
+            >
               Teacher Flow
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Submit daily curriculum outlines, check duty status, and monitor review feedback.
+            Submit daily curriculum outlines, check duty status, and monitor
+            review feedback.
           </p>
         </div>
 
@@ -204,46 +220,6 @@ export function TeacherLessonPlanView() {
             {loading ? "Syncing..." : "Refresh"}
           </Button>
         </div>
-      </div>
-
-      {/* Process Flow Interactive Ribbon */}
-      <div className="p-4 rounded-xl bg-muted/40 border border-border/50 text-xs flex flex-wrap items-center gap-2 sm:gap-3 text-muted-foreground">
-        <span className="font-semibold text-foreground flex items-center gap-1.5">
-          <Layers className="w-3.5 h-3.5 text-primary" /> Flowchart Step:
-        </span>
-        <span className="bg-background px-2.5 py-1 rounded-md border border-border">
-          1. Lesson Plan Page
-        </span>
-        <span className="text-muted-foreground/60">→</span>
-        <span
-          className={`px-2.5 py-1 rounded-md border ${
-            dailyStatus?.isLeaveDay
-              ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30 font-semibold"
-              : "bg-background text-muted-foreground border-border"
-          }`}
-        >
-          2. IsLeaveDay? {dailyStatus?.isLeaveDay ? "YES (On Leave)" : "NO"}
-        </span>
-        <span className="text-muted-foreground/60">→</span>
-        <span
-          className={`px-2.5 py-1 rounded-md border ${
-            !dailyStatus?.isLeaveDay && dailyStatus?.isDutyDay
-              ? "bg-blue-500/15 text-blue-600 border-blue-500/30 font-semibold"
-              : "bg-background text-muted-foreground border-border"
-          }`}
-        >
-          3. IsDutyDay? {dailyStatus?.isDutyDay ? "YES (Duty Day)" : "NO (Off-Duty)"}
-        </span>
-        <span className="text-muted-foreground/60">→</span>
-        <span
-          className={`px-2.5 py-1 rounded-md border ${
-            dailyStatus?.hasSubmitted
-              ? "bg-purple-500/15 text-purple-600 border-purple-500/30 font-semibold"
-              : "bg-background text-muted-foreground border-border"
-          }`}
-        >
-          4. Upload Form & DB Save {dailyStatus?.hasSubmitted ? "(Saved in DB)" : ""}
-        </span>
       </div>
 
       {/* Messages */}
@@ -284,7 +260,8 @@ export function TeacherLessonPlanView() {
                       <p className="text-sm text-muted-foreground mt-1">
                         You have an approved leave on this date:{" "}
                         <strong className="text-foreground">
-                          {dailyStatus.leaveDetails?.startDate} to {dailyStatus.leaveDetails?.endDate}
+                          {dailyStatus.leaveDetails?.startDate} to{" "}
+                          {dailyStatus.leaveDetails?.endDate}
                         </strong>
                         .
                       </p>
@@ -294,7 +271,8 @@ export function TeacherLessonPlanView() {
                         </p>
                       )}
                       <p className="text-xs text-emerald-600 font-medium mt-2">
-                        ✓ Institutional compliance: Lesson plan submission is waived for today. No further action required.
+                        ✓ Institutional compliance: Lesson plan submission is
+                        waived for today. No further action required.
                       </p>
                     </div>
                   </div>
@@ -316,13 +294,17 @@ export function TeacherLessonPlanView() {
                       <h3 className="text-base font-semibold text-foreground">
                         Not Required: Off-Duty Day
                       </h3>
-                      <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-600">
+                      <Badge
+                        variant="outline"
+                        className="text-xs border-amber-500/30 text-amber-600"
+                      >
                         Off Shift / Weekend
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">
-                      No active teaching shift or classroom schedule is assigned for {dailyStatus.date}.
-                      Daily lesson plan uploads are not required for off-duty days.
+                      No active teaching shift or classroom schedule is assigned
+                      for {dailyStatus.date}. Daily lesson plan uploads are not
+                      required for off-duty days.
                     </p>
                   </div>
                 </div>
@@ -343,13 +325,19 @@ export function TeacherLessonPlanView() {
                         Show to upload lesson plan
                       </CardTitle>
                       {dailyStatus.shiftDetails && (
-                        <Badge variant="outline" className="text-xs font-normal">
-                          Shift: {dailyStatus.shiftDetails.name} ({dailyStatus.shiftDetails.startTime} - {dailyStatus.shiftDetails.endTime})
+                        <Badge
+                          variant="outline"
+                          className="text-xs font-normal"
+                        >
+                          Shift: {dailyStatus.shiftDetails.name} (
+                          {dailyStatus.shiftDetails.startTime} -{" "}
+                          {dailyStatus.shiftDetails.endTime})
                         </Badge>
                       )}
                     </div>
                     <CardDescription className="text-xs">
-                      Submit today's curriculum objectives, outline, and plan documents (PDF, DOCX, PPTX up to 100MB).
+                      Submit today's curriculum objectives, outline, and plan
+                      documents (PDF, DOCX, PPTX up to 100MB).
                     </CardDescription>
                   </CardHeader>
 
@@ -362,7 +350,9 @@ export function TeacherLessonPlanView() {
                           </label>
                           <select
                             value={selectedSubjectId}
-                            onChange={(e) => setSelectedSubjectId(e.target.value)}
+                            onChange={(e) =>
+                              setSelectedSubjectId(e.target.value)
+                            }
                             className="w-full text-xs sm:text-sm bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
                           >
                             <option value="">Select subject...</option>
@@ -395,7 +385,8 @@ export function TeacherLessonPlanView() {
 
                       <div>
                         <label className="text-xs font-medium text-muted-foreground block mb-1">
-                          Lesson Title <span className="text-destructive">*</span>
+                          Lesson Title{" "}
+                          <span className="text-destructive">*</span>
                         </label>
                         <Input
                           placeholder="e.g. Unit 4: Quadratic Equations & Parabolic Modeling"
@@ -445,7 +436,10 @@ export function TeacherLessonPlanView() {
                             className="hidden"
                             id="lesson-plan-file-input"
                           />
-                          <label htmlFor="lesson-plan-file-input" className="cursor-pointer">
+                          <label
+                            htmlFor="lesson-plan-file-input"
+                            className="cursor-pointer"
+                          >
                             <Upload className="w-6 h-6 mx-auto text-muted-foreground mb-1.5" />
                             {selectedFile ? (
                               <div>
@@ -453,7 +447,10 @@ export function TeacherLessonPlanView() {
                                   {selectedFile.name}
                                 </p>
                                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                                  {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Click to change
+                                  {(selectedFile.size / (1024 * 1024)).toFixed(
+                                    2,
+                                  )}{" "}
+                                  MB • Click to change
                                 </p>
                               </div>
                             ) : (
@@ -488,7 +485,9 @@ export function TeacherLessonPlanView() {
                         disabled={submitting}
                         className="w-full rounded-xl gap-2 font-semibold h-10 shadow-xs"
                       >
-                        {submitting ? "Saving in DB..." : "Submit Lesson Plan (Save in DB)"}
+                        {submitting
+                          ? "Saving in DB..."
+                          : "Submit Lesson Plan (Save in DB)"}
                       </Button>
                     </form>
                   </CardContent>
@@ -515,9 +514,12 @@ export function TeacherLessonPlanView() {
                     {dailyStatus.todayPlans.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground border border-dashed rounded-xl p-4">
                         <FileText className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
-                        <p className="text-xs font-medium">No plans submitted yet today</p>
+                        <p className="text-xs font-medium">
+                          No plans submitted yet today
+                        </p>
                         <p className="text-[11px] text-muted-foreground/80 mt-0.5">
-                          Use the form on the left to upload your daily curriculum plan.
+                          Use the form on the left to upload your daily
+                          curriculum plan.
                         </p>
                       </div>
                     ) : (
@@ -532,12 +534,16 @@ export function TeacherLessonPlanView() {
                                 {plan.title}
                               </h4>
                               <p className="text-[11px] text-muted-foreground">
-                                {plan.subject?.name || "General"} • {plan.class?.name || "All Classes"}
+                                {plan.subject?.name || "General"} •{" "}
+                                {plan.class?.name || "All Classes"}
                               </p>
                             </div>
                             <div className="flex items-center gap-1.5">
                               {plan.isLate && (
-                                <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/30">
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] text-amber-600 border-amber-500/30"
+                                >
                                   Late
                                 </Badge>
                               )}
@@ -546,15 +552,15 @@ export function TeacherLessonPlanView() {
                                   plan.status === "reviewed"
                                     ? "bg-emerald-500 text-white text-[10px]"
                                     : plan.status === "needs_revision"
-                                    ? "bg-amber-500 text-white text-[10px]"
-                                    : "bg-blue-500/15 text-blue-600 text-[10px]"
+                                      ? "bg-amber-500 text-white text-[10px]"
+                                      : "bg-blue-500/15 text-blue-600 text-[10px]"
                                 }
                               >
                                 {plan.status === "reviewed"
                                   ? "Reviewed"
                                   : plan.status === "needs_revision"
-                                  ? "Needs Revision"
-                                  : "Pending Review"}
+                                    ? "Needs Revision"
+                                    : "Pending Review"}
                               </Badge>
                             </div>
                           </div>
@@ -567,7 +573,9 @@ export function TeacherLessonPlanView() {
 
                           {plan.reviewNotes && (
                             <div className="p-2 rounded-lg bg-primary/5 border border-primary/15 text-[11px] text-muted-foreground">
-                              <span className="font-semibold text-primary">Headmaster Feedback:</span>{" "}
+                              <span className="font-semibold text-primary">
+                                Headmaster Feedback:
+                              </span>{" "}
                               {plan.reviewNotes}
                             </div>
                           )}
@@ -623,7 +631,8 @@ export function TeacherLessonPlanView() {
                 Lesson Plan Submission History
               </CardTitle>
               <CardDescription className="text-xs">
-                Archived records and Headmaster evaluations across academic terms
+                Archived records and Headmaster evaluations across academic
+                terms
               </CardDescription>
             </div>
 
@@ -661,14 +670,20 @@ export function TeacherLessonPlanView() {
           ) : (
             <div className="divide-y divide-border">
               {filteredHistory.map((item) => (
-                <div key={item.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div
+                  key={item.id}
+                  className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-semibold text-foreground">
                         {item.title}
                       </h4>
                       {item.isLate && (
-                        <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/30">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] text-amber-600 border-amber-500/30"
+                        >
                           Late
                         </Badge>
                       )}
@@ -677,20 +692,22 @@ export function TeacherLessonPlanView() {
                           item.status === "reviewed"
                             ? "bg-emerald-500 text-white text-[10px]"
                             : item.status === "needs_revision"
-                            ? "bg-amber-500 text-white text-[10px]"
-                            : "bg-blue-500/15 text-blue-600 text-[10px]"
+                              ? "bg-amber-500 text-white text-[10px]"
+                              : "bg-blue-500/15 text-blue-600 text-[10px]"
                         }
                       >
                         {item.status === "reviewed"
                           ? "Reviewed"
                           : item.status === "needs_revision"
-                          ? "Needs Revision"
-                          : "Pending"}
+                            ? "Needs Revision"
+                            : "Pending"}
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Date: <strong className="text-foreground">{item.date}</strong> • Subject:{" "}
-                      {item.subject?.name || "General"} • Class: {item.class?.name || "General"}
+                      Date:{" "}
+                      <strong className="text-foreground">{item.date}</strong> •
+                      Subject: {item.subject?.name || "General"} • Class:{" "}
+                      {item.class?.name || "General"}
                     </p>
                     {item.topic && (
                       <p className="text-xs text-foreground/80 line-clamp-1">

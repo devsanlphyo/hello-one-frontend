@@ -13,6 +13,7 @@ import {
   Settings,
   User,
   Users,
+  MessageSquare,
 } from "lucide-react";
 import {
   Sidebar,
@@ -41,7 +42,8 @@ interface AdminSidebarProps {
     | "subjects"
     | "devices"
     | "profile"
-    | "settings";
+    | "settings"
+    | "feed";
 }
 
 export function AdminSidebar({ current }: AdminSidebarProps) {
@@ -73,6 +75,13 @@ export function AdminSidebar({ current }: AdminSidebarProps) {
   };
 
   const navItems = [
+    {
+      title: "School Feed",
+      href: "/admin/feed",
+      icon: MessageSquare,
+      key: "feed",
+      isActive: current === "feed" || pathname.startsWith("/admin/feed"),
+    },
     {
       title: "Users Management",
       href: "/admin/users",

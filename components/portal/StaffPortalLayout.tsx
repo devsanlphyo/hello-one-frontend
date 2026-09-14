@@ -36,13 +36,17 @@ export function StaffPortalLayout({
         <div className="flex items-center gap-2.5 select-none">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-xs overflow-hidden">
             {logoUrl ? (
-              <img src={logoUrl} alt="Logo" className="h-full w-full object-contain" />
+              <img
+                src={logoUrl}
+                alt="Logo"
+                className="h-full w-full object-contain"
+              />
             ) : (
               <GraduationCap className="h-4 w-4" />
             )}
           </div>
           <span className="font-bold text-base tracking-tight text-foreground">
-            School OS
+            Hello One
           </span>
         </div>
       </header>
@@ -76,32 +80,12 @@ export function StaffPortalLayout({
               </button>
             );
           })}
-
-          {/* Sign Out Icon */}
-          <button
-            type="button"
-            onClick={() => logout()}
-            title="Sign Out"
-            aria-label="Sign Out"
-            className="relative flex items-center justify-center w-11 h-11 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all outline-hidden cursor-pointer active:scale-95"
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
         </div>
       </nav>
 
-      {/* ── MAIN CONTENT WORKSPACE ── */}
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 md:py-8">
         {children}
       </main>
-
-      {/* ── MINIMAL FOOTER ── */}
-      <footer className="border-t py-4 text-center text-xs text-muted-foreground bg-muted/10">
-        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>School OS &bull; Academic Portal</span>
-          <span className="text-[11px]">Signed in as {user?.fullName || "Staff"} ({user?.role || "Staff"})</span>
-        </div>
-      </footer>
     </div>
   );
 }

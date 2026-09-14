@@ -12,12 +12,14 @@ import {
   CalendarCheck,
   CalendarRange,
   BookMarked,
+  MessageSquare,
 } from "lucide-react";
 import { StaffPortalLayout, NavTabItem } from "@/components/portal/StaffPortalLayout";
 import { StaffProfileTab } from "@/components/portal/StaffProfileTab";
 import { MonitorAttendanceView } from "@/components/attendance/MonitorAttendanceView";
 import { DirectorLeaveRequestsView } from "@/components/leaves/DirectorLeaveRequestsView";
 import { DirectorLessonPlansView } from "@/components/lesson-plans/DirectorLessonPlansView";
+import { FeedView } from "@/components/feed/FeedView";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -56,6 +58,7 @@ export default function DirectorPage() {
 
   const tabs: NavTabItem[] = [
     { id: "overview", label: "Executive Overview", icon: Sparkles },
+    { id: "feed", label: "Multi-Campus Feed", icon: MessageSquare },
     { id: "lesson-plans", label: "Lesson Plans", icon: BookMarked },
     { id: "leaves", label: "Leave Requests", icon: CalendarRange },
     { id: "attendance", label: "Monitor Attendances", icon: CalendarCheck },
@@ -76,6 +79,9 @@ export default function DirectorPage() {
       activeTab={activeTab}
       onTabChange={setActiveTab}
     >
+      {/* ── TAB: MULTI-CAMPUS FEED (Flow 2: Institutional Feed) ── */}
+      {activeTab === "feed" && <FeedView />}
+
       {/* ── TAB: LESSON PLANS (Multi-Campus Overview & Audit) ── */}
       {activeTab === "lesson-plans" && (
         <DirectorLessonPlansView />
