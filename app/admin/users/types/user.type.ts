@@ -15,6 +15,11 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   avatarUrl?: string | null;
+  schoolId?: string | null;
+  school?: {
+    id: string;
+    name: string;
+  } | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -25,6 +30,8 @@ export interface QueryUsersParams {
   search?: string;
   role?: string;
   status?: string;
+  schoolId?: string;
+  eligibleForSchoolId?: string;
 }
 
 export interface QueryUsersResponse {

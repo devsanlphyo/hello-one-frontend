@@ -18,7 +18,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { getDeviceName, getOrCreateDeviceId } from "@/lib/device";
 
-const ADMIN_ROLES = new Set(["admin", "director", "headmaster"]);
+const ROLE_ROUTE_MAP: Record<string, string> = {
+  admin: "/admin/users",
+  director: "/director",
+  headmaster: "/headmaster",
+  officer: "/officer",
+  teacher: "/teacher",
+  assistant: "/assistant",
+};
+
+function getRoleRedirect(role: string): string {
+  return ROLE_ROUTE_MAP[role.toLowerCase()] || "/admin/users";
+}
 
 const SEEDED_USERS = [
   {
@@ -77,15 +88,17 @@ function LoginForm() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated && role) {
-      const isAdmin = ADMIN_ROLES.has(role.toLowerCase());
+      const userRole = role.toLowerCase();
+      const targetRoute = getRoleRedirect(userRole);
+
       if (redirectParam && redirectParam.startsWith("/")) {
-        if (redirectParam.startsWith("/admin") && !isAdmin) {
-          router.replace("/profile");
+        if (redirectParam.startsWith("/admin") && userRole !== "admin") {
+          router.replace(targetRoute);
         } else {
           router.replace(redirectParam);
         }
       } else {
-        router.replace(isAdmin ? "/admin/users" : "/profile");
+        router.replace(targetRoute);
       }
     }
   }, [isLoading, isAuthenticated, role, redirectParam, router]);
@@ -140,16 +153,16 @@ function LoginForm() {
       if (userRes.ok) {
         const userData = await userRes.json();
         const userRole = userData?.user?.role?.toLowerCase() || "";
-        const isAdmin = ADMIN_ROLES.has(userRole);
+        const targetRoute = getRoleRedirect(userRole);
 
         if (redirectParam && redirectParam.startsWith("/")) {
-          if (redirectParam.startsWith("/admin") && !isAdmin) {
-            router.push("/profile");
+          if (redirectParam.startsWith("/admin") && userRole !== "admin") {
+            router.push(targetRoute);
           } else {
             router.push(redirectParam);
           }
         } else {
-          router.push(isAdmin ? "/admin/users" : "/profile");
+          router.push(targetRoute);
         }
         router.refresh();
       }

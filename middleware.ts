@@ -1,6 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-const ADMIN_ROLES = new Set(["admin", "director", "headmaster"]);
+const ROLE_ROUTE_MAP: Record<string, string> = {
+  admin: "/admin/users",
+  director: "/director",
+  headmaster: "/headmaster",
+  officer: "/officer",
+  teacher: "/teacher",
+  assistant: "/assistant",
+};
+
+const NON_ADMIN_ROUTES = ["/director", "/headmaster", "/officer", "/teacher", "/assistant"];
 
 interface DecodedToken {
   sub?: string;
@@ -28,6 +37,10 @@ function decodeJwtPayload(token: string): DecodedToken | null {
   }
 }
 
+function getHomeRouteForRole(role: string): string {
+  return ROLE_ROUTE_MAP[role.toLowerCase()] || "/auth/login";
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("auth_token")?.value;
@@ -43,31 +56,25 @@ export function middleware(request: NextRequest) {
 
   const isAuthenticated = Boolean(payload?.sub);
   const userRole = payload?.role?.toLowerCase() || "";
-  const isAdmin = ADMIN_ROLES.has(userRole);
+  const isAdmin = userRole === "admin";
 
   // 1. Root route ("/")
   if (pathname === "/") {
     if (!isAuthenticated) {
       return NextResponse.redirect(new URL("/auth/login", request.url));
     }
-    if (isAdmin) {
-      return NextResponse.redirect(new URL("/admin/users", request.url));
-    }
-    return NextResponse.redirect(new URL("/profile", request.url));
+    return NextResponse.redirect(new URL(getHomeRouteForRole(userRole), request.url));
   }
 
   // 2. Auth login page
   if (pathname.startsWith("/auth/login")) {
     if (isAuthenticated) {
-      if (isAdmin) {
-        return NextResponse.redirect(new URL("/admin/users", request.url));
-      }
-      return NextResponse.redirect(new URL("/profile", request.url));
+      return NextResponse.redirect(new URL(getHomeRouteForRole(userRole), request.url));
     }
     return NextResponse.next();
   }
 
-  // 3. Admin portal routes ("/admin/*")
+  // 3. Admin portal routes ("/admin/*") - strictly for role="admin"
   if (pathname.startsWith("/admin")) {
     if (!isAuthenticated) {
       const loginUrl = new URL("/auth/login", request.url);
@@ -75,28 +82,23 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
     if (!isAdmin) {
-      // Non-administrative users are server-redirected to /profile (no admin UI leaked)
-      return NextResponse.redirect(new URL("/profile", request.url));
+      // Non-admins routed to their respective role portal
+      return NextResponse.redirect(new URL(getHomeRouteForRole(userRole), request.url));
     }
     return NextResponse.next();
   }
 
-  // 4. Profile page ("/profile")
-  if (pathname.startsWith("/profile")) {
+  // 4. Non-admin staff routes ("/director", "/headmaster", etc.)
+  const isStaffRoute = NON_ADMIN_ROUTES.some((r) => pathname.startsWith(r));
+  if (isStaffRoute) {
     if (!isAuthenticated) {
       const loginUrl = new URL("/auth/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
     }
-    return NextResponse.next();
-  }
-
-  // 5. Settings page ("/settings")
-  if (pathname.startsWith("/settings")) {
-    if (!isAuthenticated) {
-      const loginUrl = new URL("/auth/login", request.url);
-      loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+    // If an admin accesses staff pages, redirect them to admin dashboard
+    if (isAdmin) {
+      return NextResponse.redirect(new URL("/admin/users", request.url));
     }
     return NextResponse.next();
   }

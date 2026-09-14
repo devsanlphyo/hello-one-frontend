@@ -94,14 +94,28 @@ export function ManageClassSubjectsDialog({
     try {
       const [assignRes, teachersRes] = await Promise.all([
         fetchClassSubjects(classItem.id),
-        fetchUsers({ role: "teacher", status: "active" }),
+        fetchUsers({
+          role: "teacher",
+          status: "active",
+          eligibleForSchoolId: classItem.schoolId || undefined,
+          limit: 100,
+        }),
       ]);
 
       if (assignRes.isSuccess) {
         setAssignments(assignRes.data);
       }
+
+      let eligibleTeachers: UserItem[] = [];
       if (teachersRes.isSuccess) {
-        setTeachers(teachersRes.data);
+        // Enforce 1-School Exclusivity: teacher must belong to this school or be unassigned
+        eligibleTeachers = teachersRes.data.filter((t) => {
+          if (classItem.schoolId) {
+            return t.schoolId === classItem.schoolId || !t.schoolId;
+          }
+          return !t.schoolId;
+        });
+        setTeachers(eligibleTeachers);
       }
 
       if (classItem.schoolId) {
@@ -113,8 +127,18 @@ export function ManageClassSubjectsDialog({
           }
         }
       }
-      if (isInitial && teachersRes.isSuccess && teachersRes.data.length > 0) {
-        setSelectedTeacherId(teachersRes.data[0].id);
+
+      if (isInitial) {
+        if (eligibleTeachers.length > 0) {
+          setSelectedTeacherId(eligibleTeachers[0].id);
+        } else {
+          setSelectedTeacherId("");
+        }
+      } else {
+        setSelectedTeacherId((prev) => {
+          if (eligibleTeachers.some((t) => t.id === prev)) return prev;
+          return eligibleTeachers[0]?.id || "";
+        });
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to load class curriculum data");
@@ -343,18 +367,24 @@ export function ManageClassSubjectsDialog({
                       <Select
                         items={teachers.map((t) => ({
                           value: t.id,
-                          label: `${t.fullName}`,
+                          label: `${t.fullName} (${t.schoolId ? (t.school?.name || "School Staff") : "Available"})`,
                         }))}
                         value={selectedTeacherId}
                         onValueChange={(val) => setSelectedTeacherId((val as string) ?? "")}
+                        disabled={teachers.length === 0}
                       >
                         <SelectTrigger size="sm" className="h-8 text-xs w-full">
-                          <SelectValue placeholder="Select Teacher" />
+                          <SelectValue placeholder={teachers.length === 0 ? "No eligible teachers" : "Select Teacher"} />
                         </SelectTrigger>
                         <SelectContent>
                           {teachers.map((teacher) => (
                             <SelectItem key={teacher.id} value={teacher.id} className="text-xs">
-                              {teacher.fullName}
+                              <div className="flex items-center justify-between w-full gap-2">
+                                <span>{teacher.fullName}</span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {teacher.schoolId ? (teacher.school?.name || "School Staff") : "Available"}
+                                </span>
+                              </div>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -362,14 +392,25 @@ export function ManageClassSubjectsDialog({
                     </div>
                   </div>
 
+                  {teachers.length === 0 && (
+                    <div className="rounded-md bg-amber-500/10 border border-amber-500/20 p-2 text-xs text-amber-600 flex items-center gap-2">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        No teachers currently assigned to {classItem?.school?.name || "this school"} or unassigned.
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1">
                     <span className="text-[10px] text-muted-foreground">
-                      Teacher will automatically link to {classItem?.school?.name}
+                      {teachers.find((t) => t.id === selectedTeacherId)?.schoolId
+                        ? `Teacher is on ${classItem?.school?.name || "this school"}'s faculty`
+                        : `Teacher will automatically link to ${classItem?.school?.name || "this school"}`}
                     </span>
                     <Button
                       type="submit"
                       size="sm"
-                      disabled={submitting || schoolSubjects.length === 0}
+                      disabled={submitting || schoolSubjects.length === 0 || teachers.length === 0 || !selectedTeacherId}
                       className="h-8 sm:h-7 text-xs gap-1 w-full sm:w-auto"
                     >
                       <Plus className="h-3 w-3" />

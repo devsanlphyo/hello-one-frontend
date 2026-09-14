@@ -21,6 +21,10 @@ export async function fetchUsers(
     query.append("role", params.role);
   if (params.status && params.status !== "default" && params.status !== "all")
     query.append("status", params.status);
+  if (params.schoolId && params.schoolId !== "default" && params.schoolId !== "all")
+    query.append("schoolId", params.schoolId);
+  if (params.eligibleForSchoolId)
+    query.append("eligibleForSchoolId", params.eligibleForSchoolId);
 
   return apiClient.get<QueryUsersResponse>(`/users?${query.toString()}`);
 }
