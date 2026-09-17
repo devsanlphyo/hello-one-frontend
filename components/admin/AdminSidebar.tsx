@@ -7,6 +7,7 @@ import {
   BookMarked,
   BookOpen,
   Building2,
+  Clock,
   GraduationCap,
   Laptop,
   LogOut,
@@ -40,6 +41,7 @@ interface AdminSidebarProps {
     | "schools"
     | "classes"
     | "subjects"
+    | "shifts"
     | "devices"
     | "profile"
     | "settings"
@@ -117,6 +119,13 @@ export function AdminSidebar({ current }: AdminSidebarProps) {
       icon: BookMarked,
       key: "subjects",
       isActive: current === "subjects" || pathname.startsWith("/admin/subjects"),
+    },
+    {
+      title: "Shift Management",
+      href: "/admin/shifts",
+      icon: Clock,
+      key: "shifts",
+      isActive: current === "shifts" || pathname.startsWith("/admin/shifts"),
     },
     {
       title: "My Profile",

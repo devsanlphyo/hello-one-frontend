@@ -30,7 +30,30 @@ export interface TeacherWithShift {
   email: string;
   status: string;
   avatarUrl?: string | null;
+  school?: {
+    id: string;
+    name: string;
+    code?: string;
+  } | null;
   assignment: TeacherAssignment | null;
+}
+
+export interface CreateShiftDto {
+  name: string;
+  code: string;
+  startTime: string;
+  endTime: string;
+  description?: string;
+  color?: string;
+}
+
+export interface UpdateShiftDefinitionDto {
+  name?: string;
+  startTime?: string;
+  endTime?: string;
+  description?: string;
+  color?: string;
+  isActive?: boolean;
 }
 
 export interface AttendanceRecord {
@@ -127,6 +150,49 @@ export async function fetchShifts(): Promise<ShiftItem[]> {
   });
   if (!res.ok) {
     throw new Error('Failed to load shifts');
+  }
+  return res.json();
+}
+
+export async function createShift(data: CreateShiftDto): Promise<ShiftItem> {
+  const res = await fetch('/api/proxy/shifts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to create shift');
+  }
+  return res.json();
+}
+
+export async function updateShift(
+  id: string,
+  data: UpdateShiftDefinitionDto,
+): Promise<ShiftItem> {
+  const res = await fetch(`/api/proxy/shifts/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to update shift');
+  }
+  return res.json();
+}
+
+export async function deleteShift(
+  id: string,
+): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`/api/proxy/shifts/${id}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to delete shift');
   }
   return res.json();
 }
