@@ -82,6 +82,9 @@ import { fetchSchools, type School } from "@/lib/api/schools";
 import { CreateShiftDialog } from "./components/CreateShiftDialog";
 import { EditShiftDialog } from "./components/EditShiftDialog";
 import { AssignFacultyShiftDialog } from "./components/AssignFacultyShiftDialog";
+import { TeacherShiftMatrixTab } from "./components/TeacherShiftMatrixTab";
+import { StaffScheduleTab } from "./components/StaffScheduleTab";
+import { SchoolCalendarTab } from "./components/SchoolCalendarTab";
 
 const shiftColorMap: Record<
   string,
@@ -159,7 +162,9 @@ function formatTime12h(timeStr: string): string {
 }
 
 export default function ShiftsPage() {
-  const [activeTab, setActiveTab] = useState<"schedules" | "faculty">("schedules");
+  const [activeTab, setActiveTab] = useState<
+    "schedules" | "matrix" | "staff" | "calendar" | "faculty"
+  >("schedules");
   const [shifts, setShifts] = useState<ShiftItem[]>([]);
   const [teachers, setTeachers] = useState<TeacherWithShift[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
@@ -448,30 +453,76 @@ export default function ShiftsPage() {
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex items-center gap-1 border-b pb-1">
+          <div className="flex items-center gap-1 border-b pb-1 overflow-x-auto">
             <button
               onClick={() => setActiveTab("schedules")}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-all shrink-0 ${
                 activeTab === "schedules"
-                  ? "bg-primary text-primary-foreground shadow-xs"
+                  ? "bg-primary text-primary-foreground shadow-xs font-semibold"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
               }`}
             >
               <Clock className="h-3.5 w-3.5" />
-              <span>Shift Schedules ({shifts.length})</span>
+              <span>Shift Definitions ({shifts.length})</span>
             </button>
+
             <button
-              onClick={() => setActiveTab("faculty")}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-all ${
-                activeTab === "faculty"
-                  ? "bg-primary text-primary-foreground shadow-xs"
+              onClick={() => setActiveTab("matrix")}
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-all shrink-0 ${
+                activeTab === "matrix"
+                  ? "bg-primary text-primary-foreground shadow-xs font-semibold"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
               }`}
             >
               <Users className="h-3.5 w-3.5" />
-              <span>Faculty Shift Allocation ({teachers.length})</span>
+              <span>Teacher Shift Matrix</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("staff")}
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-all shrink-0 ${
+                activeTab === "staff"
+                  ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              }`}
+            >
+              <UserCheck className="h-3.5 w-3.5" />
+              <span>Staff Working Days</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("calendar")}
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-all shrink-0 ${
+                activeTab === "calendar"
+                  ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              }`}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              <span>Academic Calendar</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("faculty")}
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg transition-all shrink-0 ${
+                activeTab === "faculty"
+                  ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              }`}
+            >
+              <Building2 className="h-3.5 w-3.5" />
+              <span>Semester Allocations</span>
             </button>
           </div>
+
+          {/* TAB 2: TEACHER SHIFT MATRIX */}
+          {activeTab === "matrix" && <TeacherShiftMatrixTab />}
+
+          {/* TAB 3: STAFF WORKING DAYS */}
+          {activeTab === "staff" && <StaffScheduleTab />}
+
+          {/* TAB 4: SCHOOL ACADEMIC CALENDAR */}
+          {activeTab === "calendar" && <SchoolCalendarTab />}
 
           {/* TAB 1: SHIFT SCHEDULES MASTER CATALOG */}
           {activeTab === "schedules" && (

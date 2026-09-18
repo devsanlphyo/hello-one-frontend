@@ -26,10 +26,15 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
 import { fetchClasses, ClassItem } from "@/lib/api/classes";
 import { fetchTeachersWithShifts, TeacherWithShift } from "@/lib/api/shifts";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function HeadmasterPage() {
+function HeadmasterContent() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<string>("feed");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get("tab") || "feed";
+  const setActiveTab = (tab: string) => router.replace(`?tab=${tab}`, { scroll: false });
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [teachers, setTeachers] = useState<TeacherWithShift[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -197,5 +202,13 @@ export default function HeadmasterPage() {
       {/* ── TAB 5: PROFILE ── */}
       {activeTab === "profile" && <StaffProfileTab />}
     </StaffPortalLayout>
+  );
+}
+
+export default function HeadmasterPage() {
+  return (
+    <Suspense fallback={null}>
+      <HeadmasterContent />
+    </Suspense>
   );
 }

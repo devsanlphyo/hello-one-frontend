@@ -33,10 +33,15 @@ import { CheckInOutWidget } from "@/components/attendance/CheckInOutWidget";
 import { StaffLeaveRequestView } from "@/components/leaves/StaffLeaveRequestView";
 import { TeacherLessonPlanView } from "@/components/lesson-plans/TeacherLessonPlanView";
 import { FeedView } from "@/components/feed/FeedView";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function TeacherPage() {
+function TeacherContent() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<string>("feed");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get("tab") || "feed";
+  const setActiveTab = (tab: string) => router.replace(`?tab=${tab}`, { scroll: false });
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -322,5 +327,13 @@ export default function TeacherPage() {
       {/* ── TAB 4: PROFILE & WORKSTATION ── */}
       {activeTab === "profile" && <StaffProfileTab />}
     </StaffPortalLayout>
+  );
+}
+
+export default function TeacherPage() {
+  return (
+    <Suspense fallback={null}>
+      <TeacherContent />
+    </Suspense>
   );
 }

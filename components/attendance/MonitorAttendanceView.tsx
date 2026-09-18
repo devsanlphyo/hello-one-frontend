@@ -45,6 +45,24 @@ export function MonitorAttendanceView({
     return `${year}-${month}-${day}`;
   };
 
+  const formatLocalTime = (isoDate?: string | null, fallbackTime?: string | null): string => {
+    if (isoDate) {
+      try {
+        const d = new Date(isoDate);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          });
+        }
+      } catch {
+        // use fallback
+      }
+    }
+    return fallbackTime || "—";
+  };
+
   const [date, setDate] = useState<string>(getTodayStr());
   const [status, setStatus] = useState<string>("all");
   const [search, setSearch] = useState<string>("");
@@ -129,7 +147,7 @@ export function MonitorAttendanceView({
             </h1>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Track and manage teacher attendance and check-in/check-out
+            Track and manage staff attendance and check-in/check-out
             activities in real time.
           </p>
         </div>
@@ -180,7 +198,7 @@ export function MonitorAttendanceView({
             <div>
               <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-600">
                 <Users className="h-3.5 w-3.5" />
-                Teachers present
+                Staff present
               </span>
             </div>
           </CardContent>
@@ -206,7 +224,7 @@ export function MonitorAttendanceView({
             <div>
               <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-rose-500/15 text-rose-600">
                 <Users className="h-3.5 w-3.5" />
-                Teachers pending
+                Staff pending
               </span>
             </div>
           </CardContent>
@@ -275,11 +293,11 @@ export function MonitorAttendanceView({
         >
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
             <Search className="h-3.5 w-3.5 text-primary" />
-            <span>Search Teacher</span>
+            <span>Search Staff</span>
           </div>
           <input
             type="text"
-            placeholder="Search by name or email..."
+            placeholder="Search by name, email, or role..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full text-xs bg-transparent border-0 focus:ring-0 p-0 outline-hidden placeholder:text-muted-foreground"
@@ -308,7 +326,7 @@ export function MonitorAttendanceView({
             <thead>
               <tr className="border-b bg-muted/30 text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
                 <th className="py-3 px-3.5 text-center w-12">#</th>
-                <th className="py-3 px-4">Teacher Name</th>
+                <th className="py-3 px-4">Staff Member</th>
                 <th className="py-3 px-4">Shift Time</th>
                 <th className="py-3 px-4 text-center">Checkin/Out Status</th>
                 <th className="py-3 px-4 text-center">Checkin Time</th>
@@ -326,16 +344,26 @@ export function MonitorAttendanceView({
                     {item.rowNumber || idx + 1}
                   </td>
 
-                  {/* Teacher Name */}
+                  {/* Staff Member */}
                   <td className="py-3.5 px-4">
                     <div className="flex items-center gap-2.5">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs uppercase">
-                        {item.teacherName ? item.teacherName.charAt(0) : "T"}
+                        {item.teacherName ? item.teacherName.charAt(0) : "S"}
                       </div>
-                      <div className="min-w-0">
-                        <span className="font-bold text-foreground block truncate">
-                          {item.teacherName}
-                        </span>
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-foreground truncate">
+                            {item.teacherName}
+                          </span>
+                          {item.teacherRole && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] capitalize px-1.5 py-0 h-4 font-normal text-muted-foreground bg-muted/40"
+                            >
+                              {item.teacherRole}
+                            </Badge>
+                          )}
+                        </div>
                         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground truncate">
                           <span>{item.teacherEmail}</span>
                           {allowCrossCampus && (
@@ -386,12 +414,12 @@ export function MonitorAttendanceView({
 
                   {/* Checkin Time */}
                   <td className="py-3.5 px-4 text-center font-mono font-medium text-foreground">
-                    {item.checkInTime || "—"}
+                    {formatLocalTime(item.createdAt, item.checkInTime)}
                   </td>
 
                   {/* Checkout Time */}
                   <td className="py-3.5 px-4 text-center font-mono font-medium text-foreground">
-                    {item.checkOutTime || "—"}
+                    {formatLocalTime(item.updatedAt, item.checkOutTime)}
                   </td>
                 </tr>
               ))}

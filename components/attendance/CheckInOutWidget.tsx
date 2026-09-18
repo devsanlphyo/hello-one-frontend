@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Clock,
   Info,
+  Lock,
   LogIn,
   LogOut,
   RefreshCw,
@@ -38,6 +39,7 @@ export function CheckInOutWidget() {
     try {
       setLoading(true);
       const res = await fetchTodayAttendanceStatus();
+      console.log("Today attendance status ", res);
       setData(res);
     } catch (err: any) {
       toast.error(err.message || "Failed to load attendance status");
@@ -94,6 +96,28 @@ export function CheckInOutWidget() {
     });
   };
 
+  // Format ISO timestamps into user browser's local time
+  const formatLocalTime = (
+    isoDate?: string | null,
+    fallbackTime?: string | null,
+  ): string => {
+    if (isoDate) {
+      try {
+        const d = new Date(isoDate);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          });
+        }
+      } catch {
+        // use fallback
+      }
+    }
+    return fallbackTime || "—";
+  };
+
   // Greeting helper based on current hour
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -122,6 +146,14 @@ export function CheckInOutWidget() {
   const shift = data?.shift;
   const attendance = data?.attendance;
   const user = data?.user;
+
+  const displayCheckInTime = formatLocalTime(
+    attendance?.createdAt,
+    attendance?.checkInTime,
+  );
+  const displayCheckOutTime = isCheckedOut
+    ? formatLocalTime(attendance?.updatedAt, attendance?.checkOutTime)
+    : "—";
 
   return (
     <div className="space-y-6 max-w-xl mx-auto animate-in fade-in-50 duration-200">
@@ -163,7 +195,23 @@ export function CheckInOutWidget() {
             </div>
 
             {/* Status Pill Badge */}
-            {isCheckedOut ? (
+            {!data?.isSchoolDay ? (
+              <Badge
+                variant="outline"
+                className="bg-rose-500/15 text-rose-700 border-rose-500/30 text-xs px-3 py-1 font-medium gap-1.5"
+              >
+                <span className="h-2 w-2 rounded-full bg-rose-500" />
+                School Closed ({data?.calendarReason || "Off-Day"})
+              </Badge>
+            ) : !data?.isScheduledToday && !isCheckedIn ? (
+              <Badge
+                variant="outline"
+                className="bg-amber-500/15 text-amber-700 border-amber-500/30 text-xs px-3 py-1 font-medium gap-1.5"
+              >
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                Not Scheduled Today
+              </Badge>
+            ) : isCheckedOut ? (
               <Badge
                 variant="outline"
                 className="bg-emerald-500/15 text-emerald-700 border-emerald-500/30 text-xs px-3 py-1 font-medium gap-1.5"
@@ -196,11 +244,17 @@ export function CheckInOutWidget() {
               {getGreeting()}, {user?.fullName || "Faculty Staff"}
             </h2>
             <p className="text-xs text-muted-foreground">
-              {isCheckedOut
+              {!data?.isSchoolDay
+                ? `Campus is officially closed today: ${data?.calendarReason || "School Holiday / Closure"}.`
+                : !data?.isScheduledToday && !isCheckedIn
+                ? "You do not have an assigned working shift or duty today."
+                : isCheckedOut
                 ? "You have completed your shift attendance for today."
                 : isCheckedIn
-                  ? "You are checked in for today."
-                  : "You are ready to check in for your workday."}
+                ? "You are checked in for today."
+                : shift
+                ? `Assigned Shift: ${shift.name} (${shift.formattedHours})`
+                : "You are ready to check in for your workday."}
             </p>
           </div>
 
@@ -210,9 +264,7 @@ export function CheckInOutWidget() {
               {isCheckedIn ? "Check In Time" : "Current Time"}
             </span>
             <div className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight font-mono">
-              {isCheckedIn && attendance?.checkInTime
-                ? attendance.checkInTime
-                : currentTime || "08:00 AM"}
+              {isCheckedIn ? displayCheckInTime : currentTime || "08:00 AM"}
             </div>
             <span className="text-xs text-muted-foreground block pt-0.5">
               {attendance?.date
@@ -230,7 +282,23 @@ export function CheckInOutWidget() {
 
           {/* Action Button */}
           <div>
-            {isCheckedOut ? (
+            {!data?.isSchoolDay ? (
+              <Button
+                disabled
+                className="w-full py-6 text-sm font-semibold rounded-xl bg-muted text-muted-foreground border cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <Lock className="h-4 w-4" />
+                School Closed Today ({data?.calendarReason || "Off-Day"})
+              </Button>
+            ) : !data?.isScheduledToday && !isCheckedIn ? (
+              <Button
+                disabled
+                className="w-full py-6 text-sm font-semibold rounded-xl bg-muted text-muted-foreground border cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <Lock className="h-4 w-4" />
+                Not Scheduled to Work Today
+              </Button>
+            ) : isCheckedOut ? (
               <Button
                 disabled
                 className="w-full py-6 text-sm font-semibold rounded-xl bg-muted text-muted-foreground border cursor-not-allowed flex items-center justify-center gap-2"
@@ -252,7 +320,7 @@ export function CheckInOutWidget() {
               <Button
                 type="button"
                 onClick={handleCheckIn}
-                disabled={isPending}
+                disabled={isPending || !data?.canCheckIn}
                 className="w-full py-6 text-sm font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60"
               >
                 <LogIn className="h-4 w-4" />
@@ -285,7 +353,7 @@ export function CheckInOutWidget() {
               </span>
             </div>
             <div className="text-lg font-bold text-foreground font-mono">
-              {attendance?.checkInTime || "—"}
+              {displayCheckInTime}
             </div>
             <span className="text-[11px] text-muted-foreground block">
               {isCheckedIn ? formattedDate : "Pending"}
@@ -303,7 +371,7 @@ export function CheckInOutWidget() {
               </span>
             </div>
             <div className="text-lg font-bold text-foreground font-mono">
-              {attendance?.checkOutTime || "—"}
+              {displayCheckOutTime}
             </div>
             <span className="text-[11px] text-muted-foreground block">
               {isCheckedOut
@@ -313,20 +381,6 @@ export function CheckInOutWidget() {
           </div>
         </CardContent>
       </Card>
-
-      {/* ── REMINDER CALLOUT (Matching Image 3) ── */}
-      <div className="p-3.5 rounded-xl border border-blue-500/20 bg-blue-500/5 text-xs flex items-start gap-3">
-        <Info className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
-        <div className="space-y-0.5">
-          <span className="font-bold text-blue-700 block text-xs">
-            Reminder
-          </span>
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Make sure to check out at the end of your workday to keep your
-            attendance record accurate.
-          </p>
-        </div>
-      </div>
     </div>
   );
 }

@@ -23,10 +23,15 @@ import { fetchDevices, UserDeviceItem } from "@/lib/api/devices";
 import { CheckInOutWidget } from "@/components/attendance/CheckInOutWidget";
 import { StaffLeaveRequestView } from "@/components/leaves/StaffLeaveRequestView";
 import { FeedView } from "@/components/feed/FeedView";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function OfficerPage() {
+function OfficerContent() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<string>("feed");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get("tab") || "feed";
+  const setActiveTab = (tab: string) => router.replace(`?tab=${tab}`, { scroll: false });
   const [devices, setDevices] = useState<UserDeviceItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -276,5 +281,13 @@ export default function OfficerPage() {
       {/* ── TAB 4: PROFILE & WORKSTATION ── */}
       {activeTab === "profile" && <StaffProfileTab />}
     </StaffPortalLayout>
+  );
+}
+
+export default function OfficerPage() {
+  return (
+    <Suspense fallback={null}>
+      <OfficerContent />
+    </Suspense>
   );
 }

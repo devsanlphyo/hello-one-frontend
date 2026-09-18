@@ -27,10 +27,15 @@ import { useAuth } from "@/context/AuthContext";
 import { fetchSchools, School } from "@/lib/api/schools";
 import { fetchUsers } from "@/lib/api/users";
 import type { User } from "@/app/admin/users/types/user.type";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function DirectorPage() {
+function DirectorContent() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<string>("overview");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get("tab") || "overview";
+  const setActiveTab = (tab: string) => router.replace(`?tab=${tab}`, { scroll: false });
   const [schools, setSchools] = useState<School[]>([]);
   const [faculty, setFaculty] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -297,5 +302,13 @@ export default function DirectorPage() {
       {/* ── TAB 4: PROFILE & WORKSTATION ── */}
       {activeTab === "profile" && <StaffProfileTab />}
     </StaffPortalLayout>
+  );
+}
+
+export default function DirectorPage() {
+  return (
+    <Suspense fallback={null}>
+      <DirectorContent />
+    </Suspense>
   );
 }

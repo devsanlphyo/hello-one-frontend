@@ -6,6 +6,7 @@ export interface ShiftItem {
   endTime: string;
   description: string;
   color: string;
+  graceMinutes: number;
   isActive: boolean;
   assignedCount: number;
 }
@@ -38,6 +39,56 @@ export interface TeacherWithShift {
   assignment: TeacherAssignment | null;
 }
 
+export interface TeacherMatrixScheduleSlot {
+  shiftId: string;
+  shiftName: string;
+  startTime: string;
+  endTime: string;
+  color: string;
+}
+
+export interface TeacherScheduleMatrixItem {
+  id: string;
+  fullName: string;
+  email: string;
+  status: string;
+  school?: {
+    id: string;
+    name: string;
+    code?: string;
+  } | null;
+  schedules: Record<number, TeacherMatrixScheduleSlot | null>;
+}
+
+export interface StaffScheduleItem {
+  id: string;
+  fullName: string;
+  email: string;
+  role: 'assistant' | 'officer';
+  status: string;
+  school?: {
+    id: string;
+    name: string;
+    code?: string;
+  } | null;
+  daysOfWeek: number[]; // 1=Mon .. 7=Sun
+}
+
+export interface CalendarDayItem {
+  date: string;
+  isSchoolDay: boolean;
+  reason: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CalendarStatusResponse {
+  date: string;
+  isSchoolDay: boolean;
+  reason: string | null;
+  isCustom: boolean;
+}
+
 export interface CreateShiftDto {
   name: string;
   code: string;
@@ -45,6 +96,7 @@ export interface CreateShiftDto {
   endTime: string;
   description?: string;
   color?: string;
+  graceMinutes?: number;
 }
 
 export interface UpdateShiftDefinitionDto {
@@ -53,23 +105,23 @@ export interface UpdateShiftDefinitionDto {
   endTime?: string;
   description?: string;
   color?: string;
+  graceMinutes?: number;
   isActive?: boolean;
 }
 
 export interface AttendanceRecord {
   id: string;
-  teacherId: string;
-  teacherName: string;
-  teacherEmail: string;
-  teacherAvatar: string | null;
-  shiftId: string;
-  shiftName: string;
-  shiftStartTime: string;
-  shiftEndTime: string;
-  shiftColor: string;
+  staffId: string;
+  staffName: string;
+  staffEmail: string;
+  staffAvatar: string | null;
+  teacherId?: string;
+  teacherName?: string;
   date: string;
   checkInTime: string | null;
   checkOutTime: string | null;
+  createdAt?: string;
+  updatedAt?: string;
   duration: string | null;
   status: 'on_time' | 'late' | 'in_progress' | 'completed' | 'absent';
   notes: string | null;
@@ -77,6 +129,10 @@ export interface AttendanceRecord {
 
 export interface TodayAttendanceStatus {
   date: string;
+  dayOfWeek: number;
+  isSchoolDay: boolean;
+  calendarReason: string | null;
+  isScheduledToday: boolean;
   user: {
     id: string;
     fullName: string;
@@ -90,6 +146,7 @@ export interface TodayAttendanceStatus {
     code: string;
     startTime: string;
     endTime: string;
+    graceMinutes?: number;
     formattedHours: string;
     color: string;
   } | null;
@@ -103,6 +160,8 @@ export interface TodayAttendanceStatus {
     date: string;
     checkInTime: string | null;
     checkOutTime: string | null;
+    createdAt?: string;
+    updatedAt?: string;
     duration: string | null;
     status: 'on_time' | 'late' | 'in_progress' | 'completed' | 'absent';
     notes: string | null;
@@ -113,6 +172,7 @@ export interface TodayAttendanceStatus {
 export interface AttendanceMonitorSummary {
   alreadyCheckedCount: number;
   notCheckedCount: number;
+  onLeaveCount: number;
   totalCount: number;
 }
 
@@ -129,9 +189,11 @@ export interface AttendanceMonitorItem {
   shiftName: string;
   shiftTime: string;
   shiftColor: string;
-  status: 'checked_out' | 'checked_in' | 'late' | 'not_checked_in';
+  status: 'checked_out' | 'checked_in' | 'late' | 'not_checked_in' | 'on_leave';
   checkInTime: string | null;
   checkOutTime: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   duration: string | null;
   notes: string | null;
 }
@@ -141,6 +203,8 @@ export interface AttendanceMonitorResponse {
   summary: AttendanceMonitorSummary;
   records: AttendanceMonitorItem[];
 }
+
+// ── SHIFT DEFINITIONS ──
 
 export async function fetchShifts(): Promise<ShiftItem[]> {
   const res = await fetch('/api/proxy/shifts', {
@@ -196,6 +260,128 @@ export async function deleteShift(
   }
   return res.json();
 }
+
+// ── 7-DAY TEACHER SHIFT MATRIX ──
+
+export async function fetchTeacherScheduleMatrix(): Promise<TeacherScheduleMatrixItem[]> {
+  const res = await fetch('/api/proxy/shifts/schedules/teachers', {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    throw new Error('Failed to load teacher schedule matrix');
+  }
+  return res.json();
+}
+
+export async function saveTeacherSchedule(data: {
+  userId: string;
+  schedules: Array<{ dayOfWeek: number; shiftId: string | null }>;
+}): Promise<{ success: boolean; message: string }> {
+  const res = await fetch('/api/proxy/shifts/schedules/teachers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to save teacher schedule');
+  }
+  return res.json();
+}
+
+// ── STAFF WORKING DAYS (ASSISTANTS & OFFICERS) ──
+
+export async function fetchStaffSchedules(): Promise<StaffScheduleItem[]> {
+  const res = await fetch('/api/proxy/shifts/schedules/staff', {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    throw new Error('Failed to load staff working day schedules');
+  }
+  return res.json();
+}
+
+export async function saveStaffSchedule(data: {
+  userId: string;
+  daysOfWeek: number[];
+}): Promise<{ success: boolean; message: string }> {
+  const res = await fetch('/api/proxy/shifts/schedules/staff', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to save staff schedule');
+  }
+  return res.json();
+}
+
+// ── SCHOOL CALENDAR DAY CONTROLS ──
+
+export async function fetchCalendarDays(): Promise<CalendarDayItem[]> {
+  const res = await fetch('/api/proxy/shifts/calendar', {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    throw new Error('Failed to load school calendar');
+  }
+  return res.json();
+}
+
+export async function fetchCalendarDayStatus(date?: string): Promise<CalendarStatusResponse> {
+  const url = date
+    ? `/api/proxy/shifts/calendar/status?date=${encodeURIComponent(date)}`
+    : '/api/proxy/shifts/calendar/status';
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    throw new Error('Failed to load date status');
+  }
+  return res.json();
+}
+
+export async function saveCalendarOverride(data: {
+  date: string;
+  isSchoolDay: boolean;
+  reason?: string;
+}): Promise<CalendarDayItem> {
+  const res = await fetch('/api/proxy/shifts/calendar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to save calendar day override');
+  }
+  return res.json();
+}
+
+export async function deleteCalendarOverride(
+  date: string,
+): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`/api/proxy/shifts/calendar/${date}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to remove calendar override');
+  }
+  return res.json();
+}
+
+// ── LEGACY ASSIGNMENTS ──
 
 export async function fetchTeachersWithShifts(): Promise<TeacherWithShift[]> {
   const res = await fetch('/api/proxy/shifts/teachers', {
@@ -261,10 +447,10 @@ export async function unassignTeacherShift(teacherId: string) {
 }
 
 export async function fetchShiftAttendance(
-  teacherId?: string,
+  staffId?: string,
 ): Promise<AttendanceRecord[]> {
-  const url = teacherId
-    ? `/api/proxy/shifts/attendance?teacherId=${encodeURIComponent(teacherId)}`
+  const url = staffId
+    ? `/api/proxy/shifts/attendance?staffId=${encodeURIComponent(staffId)}`
     : '/api/proxy/shifts/attendance';
   const res = await fetch(url, {
     method: 'GET',
