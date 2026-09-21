@@ -1,7 +1,7 @@
 "use client";
 
 import { UserPlus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,13 +23,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createUser } from "@/lib/api/users";
+import { fetchSchools, School } from "@/lib/api/schools";
 import type { User, UserRole } from "../types/user.type";
+
+const roleOptions: { value: UserRole; label: string }[] = [
+  { value: "admin", label: "Admin" },
+  { value: "director", label: "Director" },
+  { value: "headmaster", label: "Headmaster" },
+  { value: "teacher", label: "Teacher" },
+  { value: "assistant", label: "Assistant" },
+  { value: "officer", label: "Officer" },
+];
 
 export type RegisterUserData = {
   fullName: string;
   email: string;
   password: string;
   role: UserRole;
+  schoolId: string;
 };
 
 interface RegisterUserDialogProps {
@@ -43,12 +54,31 @@ export function RegisterUserDialog({
 }: RegisterUserDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [schools, setSchools] = useState<School[]>([]);
   const [user, setUser] = useState<RegisterUserData>({
     fullName: "",
     email: "",
     password: "",
     role: "teacher",
+    schoolId: "none",
   });
+
+  useEffect(() => {
+    if (open) {
+      fetchSchools()
+        .then((res) => {
+          if (res.isSuccess) setSchools(res.data);
+        })
+        .catch(() => {});
+    }
+  }, [open]);
+
+  const schoolOptions = useMemo(() => {
+    return [
+      { value: "none", label: "Unassigned / None" },
+      ...schools.map((s) => ({ value: s.id, label: s.name })),
+    ];
+  }, [schools]);
 
   function handleUserData(key: keyof RegisterUserData, value: string) {
     setUser((prev) => ({ ...prev, [key]: value }));
@@ -65,11 +95,12 @@ export function RegisterUserDialog({
         password: user.password,
         role: user.role,
         status: "active",
+        schoolId: user.schoolId && user.schoolId !== "none" ? user.schoolId : undefined,
       });
 
       toast.success(res.message || "User registered successfully");
       onSuccess?.(res.user);
-      setUser({ fullName: "", email: "", password: "", role: "teacher" });
+      setUser({ fullName: "", email: "", password: "", role: "teacher", schoolId: "none" });
       setOpen(false);
     } catch (error: any) {
       toast.error(error.message || "Failed to register user");
@@ -105,7 +136,7 @@ export function RegisterUserDialog({
             <div>
               <DialogTitle>Register User</DialogTitle>
               <DialogDescription>
-                Create a new user account and assign a role.
+                Create a new user account, assign a role and campus.
               </DialogDescription>
             </div>
           </div>
@@ -154,28 +185,54 @@ export function RegisterUserDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <label htmlFor="modal-role" className="text-sm font-medium">
-              Role
-            </label>
-            <Select
-              value={user.role}
-              onValueChange={(value) =>
-                handleUserData("role", (value as UserRole) ?? "teacher")
-              }
-            >
-              <SelectTrigger id="modal-role" className="w-full">
-                <SelectValue placeholder="Select role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="director">Director</SelectItem>
-                <SelectItem value="headmaster">Headmaster</SelectItem>
-                <SelectItem value="teacher">Teacher</SelectItem>
-                <SelectItem value="assistant">Assistant</SelectItem>
-                <SelectItem value="officer">Officer</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label htmlFor="modal-role" className="text-sm font-medium">
+                Role
+              </label>
+              <Select
+                items={roleOptions}
+                value={user.role}
+                onValueChange={(value) =>
+                  handleUserData("role", (value as UserRole) ?? "teacher")
+                }
+              >
+                <SelectTrigger id="modal-role" className="w-full">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="modal-school" className="text-sm font-medium">
+                Campus / School
+              </label>
+              <Select
+                items={schoolOptions}
+                value={user.schoolId}
+                onValueChange={(value) =>
+                  handleUserData("schoolId", (value as string) ?? "none")
+                }
+              >
+                <SelectTrigger id="modal-school" className="w-full">
+                  <SelectValue placeholder="Select school" />
+                </SelectTrigger>
+                <SelectContent>
+                  {schoolOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <DialogFooter className="pt-2 flex flex-col-reverse sm:flex-row gap-2">

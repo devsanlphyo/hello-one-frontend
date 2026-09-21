@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Loader2, Pencil, Trash2, Upload } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,14 +22,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { removeUserAvatar, updateUser, uploadUserAvatar } from "@/lib/api/users";
+import {
+  updateUser,
+  uploadUserAvatar,
+  removeUserAvatar,
+} from "@/lib/api/users";
+import { fetchSchools, School } from "@/lib/api/schools";
 import type { User, UserRole, UserStatus } from "../types/user.type";
+
+const roleOptions: { value: UserRole; label: string }[] = [
+  { value: "admin", label: "Admin" },
+  { value: "director", label: "Director" },
+  { value: "headmaster", label: "Headmaster" },
+  { value: "teacher", label: "Teacher" },
+  { value: "assistant", label: "Assistant" },
+  { value: "officer", label: "Officer" },
+];
+
+const statusOptions: { value: UserStatus; label: string }[] = [
+  { value: "active", label: "Active" },
+  { value: "suspend", label: "Suspended" },
+];
 
 interface EditUserDialogProps {
   user: User | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: (updatedUser: User) => void;
+  onSuccess?: (user: User) => void;
 }
 
 export function EditUserDialog({
@@ -38,17 +57,37 @@ export function EditUserDialog({
   onOpenChange,
   onSuccess,
 }: EditUserDialogProps) {
-  const [formData, setFormData] = useState({
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(null);
+  const [schools, setSchools] = useState<School[]>([]);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const [formData, setFormData] = useState<{
+    fullName: string;
+    email: string;
+    role: UserRole;
+    status: UserStatus;
+    schoolId: string;
+    password: string;
+  }>({
     fullName: "",
     email: "",
-    role: "teacher" as UserRole,
-    status: "active" as UserStatus,
+    role: "teacher",
+    status: "active",
+    schoolId: "none",
     password: "",
   });
-  const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(null);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      fetchSchools()
+        .then((res) => {
+          if (res.isSuccess) setSchools(res.data);
+        })
+        .catch(() => {});
+    }
+  }, [open]);
 
   useEffect(() => {
     if (user) {
@@ -57,13 +96,24 @@ export function EditUserDialog({
         email: user.email || "",
         role: user.role || "teacher",
         status: user.status || "active",
+        schoolId: user.schoolId || "none",
         password: "",
       });
       setCurrentAvatarUrl(user.avatarUrl || null);
     }
-  }, [user]);
+  }, [user, open]);
 
-  function handleChange(key: string, value: string) {
+  const schoolOptions = useMemo(() => {
+    return [
+      { value: "none", label: "Unassigned / None" },
+      ...schools.map((s) => ({ value: s.id, label: s.name })),
+    ];
+  }, [schools]);
+
+  function handleChange(
+    key: keyof typeof formData,
+    value: string | UserRole | UserStatus,
+  ) {
     setFormData((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -71,25 +121,21 @@ export function EditUserDialog({
     const file = e.target.files?.[0];
     if (!file || !user?.id) return;
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error("Unsupported file type. Please upload a JPG, PNG, or WEBP image.");
-      e.target.value = "";
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload a valid image file (PNG, JPG, WEBP).");
       return;
     }
 
-    const maxSize = 10 * 1024 * 1024; // 10MB standard size
-    if (file.size > maxSize) {
-      toast.error("Image file size exceeds 10MB standard limit.");
-      e.target.value = "";
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File size cannot exceed 10MB.");
       return;
     }
 
     try {
       setIsUploadingAvatar(true);
       const res = await uploadUserAvatar(user.id, file);
-      if (res.isSuccess) {
-        setCurrentAvatarUrl(res.user.avatarUrl ?? null);
+      if (res.isSuccess && res.user.avatarUrl) {
+        setCurrentAvatarUrl(res.user.avatarUrl);
         onSuccess?.(res.user);
         toast.success("User profile photo updated");
       }
@@ -132,6 +178,7 @@ export function EditUserDialog({
         email: formData.email,
         role: formData.role,
         status: formData.status,
+        schoolId: formData.schoolId === "none" ? null : formData.schoolId,
       };
 
       if (formData.password.trim()) {
@@ -160,7 +207,7 @@ export function EditUserDialog({
             <div>
               <DialogTitle>Edit User Profile</DialogTitle>
               <DialogDescription>
-                Update user information, role permissions, and status.
+                Update user information, campus assignment, and status.
               </DialogDescription>
             </div>
           </div>
@@ -257,6 +304,7 @@ export function EditUserDialog({
                 Assigned Role
               </label>
               <Select
+                items={roleOptions}
                 value={formData.role}
                 onValueChange={(val) =>
                   handleChange("role", (val as UserRole) ?? "teacher")
@@ -266,12 +314,11 @@ export function EditUserDialog({
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="director">Director</SelectItem>
-                  <SelectItem value="headmaster">Headmaster</SelectItem>
-                  <SelectItem value="teacher">Teacher</SelectItem>
-                  <SelectItem value="assistant">Assistant</SelectItem>
-                  <SelectItem value="officer">Officer</SelectItem>
+                  {roleOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -281,6 +328,7 @@ export function EditUserDialog({
                 Account Status
               </label>
               <Select
+                items={statusOptions}
                 value={formData.status}
                 onValueChange={(val) =>
                   handleChange("status", (val as UserStatus) ?? "active")
@@ -290,11 +338,38 @@ export function EditUserDialog({
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="suspend">Suspended</SelectItem>
+                  {statusOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="edit-school" className="text-sm font-medium">
+              Assigned Campus / School
+            </label>
+            <Select
+              items={schoolOptions}
+              value={formData.schoolId}
+              onValueChange={(val) =>
+                handleChange("schoolId", (val as string) ?? "none")
+              }
+            >
+              <SelectTrigger id="edit-school" className="w-full">
+                <SelectValue placeholder="Select school" />
+              </SelectTrigger>
+              <SelectContent>
+                {schoolOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

@@ -172,21 +172,21 @@ export function CampusLeaveRequestsView({ schoolId }: CampusLeaveRequestsViewPro
       )}
 
       {/* ── FLOW 2 FILTER TABS (Pending / Approved / Rejected) ── */}
-      <div className="flex items-center gap-2 border-b pb-2">
+      <div className="flex items-center gap-1.5 sm:gap-2 border-b pb-2 overflow-x-auto scrollbar-none -mx-1 px-1">
         <button
           type="button"
           onClick={() => setActiveTab("pending")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer whitespace-nowrap ${
             activeTab === "pending"
               ? "bg-amber-500 text-white shadow-xs"
-              : "text-muted-foreground hover:bg-muted/60"
+              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
           }`}
         >
-          <Clock className="h-3.5 w-3.5" />
-          Pending Review
+          <Clock className="h-3.5 w-3.5 shrink-0" />
+          <span>Pending<span className="hidden sm:inline"> Review</span></span>
           <span
-            className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] ${
-              activeTab === "pending" ? "bg-white/20 text-white" : "bg-muted text-foreground"
+            className={`ml-1 min-w-4 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-center leading-none ${
+              activeTab === "pending" ? "bg-white/25 text-white" : "bg-muted text-muted-foreground"
             }`}
           >
             {pendingList.length}
@@ -196,17 +196,17 @@ export function CampusLeaveRequestsView({ schoolId }: CampusLeaveRequestsViewPro
         <button
           type="button"
           onClick={() => setActiveTab("approved")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer whitespace-nowrap ${
             activeTab === "approved"
               ? "bg-emerald-600 text-white shadow-xs"
-              : "text-muted-foreground hover:bg-muted/60"
+              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
           }`}
         >
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          Approved Leaves
+          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+          <span>Approved<span className="hidden sm:inline"> Leaves</span></span>
           <span
-            className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] ${
-              activeTab === "approved" ? "bg-white/20 text-white" : "bg-muted text-foreground"
+            className={`ml-1 min-w-4 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-center leading-none ${
+              activeTab === "approved" ? "bg-white/25 text-white" : "bg-muted text-muted-foreground"
             }`}
           >
             {approvedList.length}
@@ -216,17 +216,17 @@ export function CampusLeaveRequestsView({ schoolId }: CampusLeaveRequestsViewPro
         <button
           type="button"
           onClick={() => setActiveTab("rejected")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer whitespace-nowrap ${
             activeTab === "rejected"
               ? "bg-destructive text-white shadow-xs"
-              : "text-muted-foreground hover:bg-muted/60"
+              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
           }`}
         >
-          <XCircle className="h-3.5 w-3.5" />
-          Rejected Requests
+          <XCircle className="h-3.5 w-3.5 shrink-0" />
+          <span>Rejected<span className="hidden sm:inline"> Requests</span></span>
           <span
-            className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] ${
-              activeTab === "rejected" ? "bg-white/20 text-white" : "bg-muted text-foreground"
+            className={`ml-1 min-w-4 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-center leading-none ${
+              activeTab === "rejected" ? "bg-white/25 text-white" : "bg-muted text-muted-foreground"
             }`}
           >
             {rejectedList.length}

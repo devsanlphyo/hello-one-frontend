@@ -259,10 +259,10 @@ export function CampusLessonPlansView() {
 
       {/* Tabs & Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
-        <div className="flex items-center gap-1.5 overflow-x-auto">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 sm:pb-0">
           <button
             onClick={() => setActiveTab("all")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition shrink-0 whitespace-nowrap ${
               activeTab === "all"
                 ? "bg-primary text-primary-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -272,7 +272,7 @@ export function CampusLessonPlansView() {
           </button>
           <button
             onClick={() => setActiveTab("pending")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition shrink-0 whitespace-nowrap ${
               activeTab === "pending"
                 ? "bg-primary text-primary-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -282,7 +282,7 @@ export function CampusLessonPlansView() {
           </button>
           <button
             onClick={() => setActiveTab("reviewed")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition shrink-0 whitespace-nowrap ${
               activeTab === "reviewed"
                 ? "bg-primary text-primary-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -292,7 +292,7 @@ export function CampusLessonPlansView() {
           </button>
           <button
             onClick={() => setActiveTab("excused")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition shrink-0 whitespace-nowrap ${
               activeTab === "excused"
                 ? "bg-primary text-primary-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"

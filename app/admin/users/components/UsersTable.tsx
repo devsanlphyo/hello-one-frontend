@@ -116,6 +116,9 @@ export default function UsersTable({
                       <Skeleton className="h-5 w-16" />
                     </TableCell>
                     <TableCell>
+                      <Skeleton className="h-5 w-24" />
+                    </TableCell>
+                    <TableCell>
                       <Skeleton className="h-5 w-16" />
                     </TableCell>
                     <TableCell className="text-right">
@@ -125,7 +128,7 @@ export default function UsersTable({
                 ))
               ) : users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                     No users found matching the selected criteria.
                   </TableCell>
                 </TableRow>
@@ -158,6 +161,15 @@ export default function UsersTable({
                       >
                         {item.role}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {item.school?.name ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-foreground border">
+                          {item.school.name}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">Unassigned</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge

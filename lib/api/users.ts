@@ -41,6 +41,7 @@ export async function createUser(data: {
   password: string;
   role: UserRole;
   status?: UserStatus;
+  schoolId?: string | null;
 }): Promise<{ isSuccess: boolean; message: string; user: User }> {
   return apiClient.post<{ isSuccess: boolean; message: string; user: User }>(
     "/auth/register",
@@ -56,6 +57,7 @@ export async function updateUser(
     role: UserRole;
     status: UserStatus;
     password: string;
+    schoolId?: string | null;
   }>,
 ): Promise<{ isSuccess: boolean; message: string; user: User }> {
   return apiClient.patch<{ isSuccess: boolean; message: string; user: User }>(

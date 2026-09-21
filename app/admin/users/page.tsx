@@ -34,6 +34,7 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { RegisterUserDialog } from "./components/RegisterUserDialog";
 import UsersTable from "./components/UsersTable";
 import { fetchUsers, suspendUser, updateUser } from "@/lib/api/users";
+import { fetchSchools, School } from "@/lib/api/schools";
 import type { User } from "./types/user.type";
 
 const roleOptions = [
@@ -59,6 +60,8 @@ export default function UsersPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [role, setRole] = useState("default");
   const [status, setStatus] = useState("default");
+  const [selectedSchool, setSelectedSchool] = useState("default");
+  const [schools, setSchools] = useState<School[]>([]);
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [total, setTotal] = useState(0);
@@ -80,6 +83,14 @@ export default function UsersPage() {
     setPage(1);
   }, [debouncedSearch]);
 
+  useEffect(() => {
+    fetchSchools()
+      .then((res) => {
+        if (res.isSuccess) setSchools(res.data);
+      })
+      .catch(() => {});
+  }, []);
+
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
@@ -89,6 +100,7 @@ export default function UsersPage() {
         search: debouncedSearch,
         role: role !== "default" ? role : undefined,
         status: status !== "default" ? status : undefined,
+        schoolId: selectedSchool !== "default" ? selectedSchool : undefined,
       });
 
       if (res.isSuccess) {
@@ -101,7 +113,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, debouncedSearch, role, status]);
+  }, [page, limit, debouncedSearch, role, status, selectedSchool]);
 
   useEffect(() => {
     loadUsers();
@@ -221,6 +233,31 @@ export default function UsersPage() {
                     {statusOptions.map((item) => (
                       <SelectItem key={item.value} value={item.value} className="text-xs">
                         {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={selectedSchool}
+                  onValueChange={(val) => {
+                    setSelectedSchool((val as string) ?? "default");
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger size="sm" className="h-9 text-xs w-36">
+                    <SelectValue placeholder="All Campuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default" className="text-xs">
+                      All Campuses
+                    </SelectItem>
+                    <SelectItem value="unassigned" className="text-xs">
+                      Unassigned
+                    </SelectItem>
+                    {schools.map((s) => (
+                      <SelectItem key={s.id} value={s.id} className="text-xs">
+                        {s.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
