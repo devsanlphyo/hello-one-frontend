@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/context/AuthContext";
 import { fetchClasses, ClassItem } from "@/lib/api/classes";
 import { fetchSubjects, Subject } from "@/lib/api/subjects";
 import {
@@ -43,6 +44,7 @@ import {
 } from "@/lib/api/lesson-plans";
 
 export function TeacherLessonPlanView() {
+  const { user } = useAuth();
   const [dailyStatus, setDailyStatus] = useState<DailyLessonPlanStatus | null>(
     null,
   );
@@ -87,7 +89,20 @@ export function TeacherLessonPlanView() {
 
       setDailyStatus(statusData);
       setPlans(Array.isArray(plansData) ? plansData : []);
-      if (classesRes?.isSuccess) setClasses(classesRes.data || []);
+
+      const currentTeacherId = user?.id || statusData?.teacher?.id;
+      const allClasses: ClassItem[] = classesRes?.isSuccess ? classesRes.data || [] : [];
+      
+      const teacherAssignedClasses = allClasses.filter((cls) => {
+        if (!currentTeacherId) return true;
+        const isHomeroomTeacher = cls.teacherId === currentTeacherId;
+        const isSubjectTeacher = cls.classSubjects?.some(
+          (cs) => cs.teacherId === currentTeacherId
+        );
+        return isHomeroomTeacher || isSubjectTeacher;
+      });
+
+      setClasses(teacherAssignedClasses);
       if (subjectsRes?.isSuccess) setSubjects(subjectsRes.data || []);
     } catch (err: any) {
       setError(err?.message || "Failed to load lesson plan data");
@@ -98,7 +113,7 @@ export function TeacherLessonPlanView() {
 
   useEffect(() => {
     loadData(targetDate);
-  }, [targetDate, statusFilter]);
+  }, [targetDate, statusFilter, user?.id]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -373,7 +388,11 @@ export function TeacherLessonPlanView() {
                             onChange={(e) => setSelectedClassId(e.target.value)}
                             className="w-full text-xs sm:text-sm bg-background border border-border rounded-xl px-3 py-2 text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
                           >
-                            <option value="">Select class...</option>
+                            <option value="">
+                              {classes.length === 0
+                                ? "No assigned classes"
+                                : "Select class..."}
+                            </option>
                             {classes.map((cls) => (
                               <option key={cls.id} value={cls.id}>
                                 {cls.name} ({cls.gradeLevel})
