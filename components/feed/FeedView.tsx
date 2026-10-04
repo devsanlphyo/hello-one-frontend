@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   ThumbsUp,
   MessageCircle,
-  Share2,
   Smile,
   Video,
   Image as ImageIcon,
@@ -24,7 +23,6 @@ import {
   ChevronRight,
   Download,
   AlertCircle,
-  Users,
   Camera,
   RefreshCw,
 } from "lucide-react";
@@ -41,6 +39,7 @@ import {
   addFeedComment,
   deleteFeedComment,
   PostVisibility,
+  getMediaUrl,
 } from "@/lib/api/feed";
 import { fetchSchools, School } from "@/lib/api/schools";
 import { Button } from "@/components/ui/button";
@@ -67,27 +66,32 @@ const POST_BACKGROUNDS = [
   {
     id: "ocean",
     label: "Ocean",
-    class: "bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-white font-bold text-center text-xl md:text-2xl p-8 rounded-xl flex items-center justify-center min-h-[220px]",
+    class:
+      "bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-white font-bold text-center text-xl md:text-2xl p-8 rounded-xl flex items-center justify-center min-h-[220px]",
   },
   {
     id: "sunset",
     label: "Sunset",
-    class: "bg-gradient-to-tr from-rose-500 via-amber-500 to-yellow-400 text-white font-bold text-center text-xl md:text-2xl p-8 rounded-xl flex items-center justify-center min-h-[220px]",
+    class:
+      "bg-gradient-to-tr from-rose-500 via-amber-500 to-yellow-400 text-white font-bold text-center text-xl md:text-2xl p-8 rounded-xl flex items-center justify-center min-h-[220px]",
   },
   {
     id: "berry",
     label: "Berry",
-    class: "bg-gradient-to-tr from-purple-800 via-pink-600 to-rose-500 text-white font-bold text-center text-xl md:text-2xl p-8 rounded-xl flex items-center justify-center min-h-[220px]",
+    class:
+      "bg-gradient-to-tr from-purple-800 via-pink-600 to-rose-500 text-white font-bold text-center text-xl md:text-2xl p-8 rounded-xl flex items-center justify-center min-h-[220px]",
   },
   {
     id: "emerald",
     label: "Emerald",
-    class: "bg-gradient-to-tr from-emerald-700 via-teal-600 to-cyan-500 text-white font-bold text-center text-xl md:text-2xl p-8 rounded-xl flex items-center justify-center min-h-[220px]",
+    class:
+      "bg-gradient-to-tr from-emerald-700 via-teal-600 to-cyan-500 text-white font-bold text-center text-xl md:text-2xl p-8 rounded-xl flex items-center justify-center min-h-[220px]",
   },
   {
     id: "fire",
     label: "Fire",
-    class: "bg-gradient-to-tr from-red-600 via-orange-600 to-amber-500 text-white font-bold text-center text-xl md:text-2xl p-8 rounded-xl flex items-center justify-center min-h-[220px]",
+    class:
+      "bg-gradient-to-tr from-red-600 via-orange-600 to-amber-500 text-white font-bold text-center text-xl md:text-2xl p-8 rounded-xl flex items-center justify-center min-h-[220px]",
   },
 ];
 
@@ -107,13 +111,19 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
   const [hiddenPostIds, setHiddenPostIds] = useState<Set<string>>(new Set());
 
   // Expandable post text state ("See more")
-  const [expandedTextPostIds, setExpandedTextPostIds] = useState<Set<string>>(new Set());
+  const [expandedTextPostIds, setExpandedTextPostIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Comment Likes map
-  const [likedCommentIds, setLikedCommentIds] = useState<Set<string>>(new Set());
+  const [likedCommentIds, setLikedCommentIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Hover reaction popup tracking
-  const [hoverReactionPostId, setHoverReactionPostId] = useState<string | null>(null);
+  const [hoverReactionPostId, setHoverReactionPostId] = useState<string | null>(
+    null,
+  );
   const reactionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Facebook Create Post Modal State
@@ -127,14 +137,18 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
   const [isAnnouncement, setIsAnnouncement] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [filePreviews, setFilePreviews] = useState<{ name: string; url: string }[]>([]);
+  const [filePreviews, setFilePreviews] = useState<
+    { name: string; url: string }[]
+  >([]);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Edit Modal State
   const [editingPost, setEditingPost] = useState<FeedPostItem | null>(null);
   const [editContent, setEditContent] = useState("");
-  const [editVisibility, setEditVisibility] = useState<PostVisibility>("campus");
+  const [editTheme, setEditTheme] = useState<string>("none");
+  const [editVisibility, setEditVisibility] =
+    useState<PostVisibility>("campus");
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Delete Confirm State
@@ -142,9 +156,15 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
   const [deleting, setDeleting] = useState(false);
 
   // Comment input states: map of postId -> draft text
-  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
-  const [activeReplyTo, setActiveReplyTo] = useState<Record<string, string | null>>({});
-  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>(
+    {},
+  );
+  const [activeReplyTo, setActiveReplyTo] = useState<
+    Record<string, string | null>
+  >({});
+  const [expandedComments, setExpandedComments] = useState<
+    Record<string, boolean>
+  >({});
 
   // Lightbox State
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
@@ -202,6 +222,10 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
     }));
     setFilePreviews(previews);
     setSelectedBgStyle("none");
+    setComposerOpen(true);
+    if (e.target) {
+      e.target.value = "";
+    }
   };
 
   const removeFile = (idx: number) => {
@@ -230,6 +254,7 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
         schoolId: isMultiCampus ? newSchoolId || undefined : undefined,
         isAnnouncement,
         isPinned,
+        theme: selectedFiles.length === 0 ? selectedBgStyle : "none",
         files: selectedFiles,
       });
 
@@ -261,6 +286,7 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
     }
     setEditingPost(post);
     setEditContent(post.content);
+    setEditTheme(post.theme || "none");
     setEditVisibility(post.visibility);
     setActiveMenuPostId(null);
   };
@@ -278,6 +304,8 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
       const updated = await updateFeedPost(editingPost.id, {
         content: editContent.trim(),
         visibility: editVisibility,
+        theme:
+          (editingPost.mediaItems?.length || 0) === 0 ? editTheme : "none",
       });
 
       setPosts((prev) =>
@@ -309,14 +337,21 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
     }
   };
 
-  // Toggle Like Reaction
-  const handleToggleLike = async (postId: string) => {
+  // Toggle Reaction (Like, Love, Care, Haha, Wow, Sad, Angry)
+  const handleToggleLike = async (postId: string, reactionType = "like") => {
     try {
-      const res = await toggleFeedReaction(postId);
+      const res = await toggleFeedReaction(postId, reactionType);
       setPosts((prev) =>
         prev.map((p) =>
           p.id === postId
-            ? { ...p, hasLiked: res.liked, reactionCount: res.reactionCount }
+            ? {
+                ...p,
+                hasLiked: res.liked,
+                userReaction: res.userReaction,
+                reactionCount: res.reactionCount,
+                reactionTypes:
+                  res.reactionTypes || (res.liked ? [reactionType] : []),
+              }
             : p,
         ),
       );
@@ -382,7 +417,9 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
       setPosts((prev) =>
         prev.map((p) => {
           if (p.id === postId) {
-            const filterRecursive = (list: FeedCommentItem[]): FeedCommentItem[] => {
+            const filterRecursive = (
+              list: FeedCommentItem[],
+            ): FeedCommentItem[] => {
               return list
                 .filter((c) => c.id !== commentId)
                 .map((c) => ({
@@ -500,29 +537,13 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
           </button>
         </div>
 
-        <div className="border-t border-gray-200/80 dark:border-neutral-800" />
+        <div className="border-t border-gray-200 dark:border-neutral-800" />
 
-        {/* Bottom Row: 3 Facebook Action Buttons */}
-        <div className="grid grid-cols-3 gap-1">
+        {/* Bottom Row: Facebook Action Buttons */}
+        <div className="grid grid-cols-2 gap-1">
           <button
             type="button"
-            onClick={() => {
-              setIsAnnouncement(true);
-              setComposerOpen(true);
-            }}
-            className="flex items-center justify-center gap-2 py-2 px-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3A3B3C] text-[14px] font-semibold text-[#65676B] dark:text-[#B0B3B8] transition-colors"
-          >
-            <Video className="w-5 h-5 text-[#F3425F]" />
-            <span className="hidden sm:inline">Live video</span>
-            <span className="sm:hidden">Live</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setComposerOpen(true);
-              setTimeout(() => fileInputRef.current?.click(), 100);
-            }}
+            onClick={() => fileInputRef.current?.click()}
             className="flex items-center justify-center gap-2 py-2 px-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3A3B3C] text-[14px] font-semibold text-[#65676B] dark:text-[#B0B3B8] transition-colors"
           >
             <ImageIcon className="w-5 h-5 text-[#45BD62]" />
@@ -590,11 +611,18 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
           {visiblePosts.map((post) => {
             const isCommentsOpen = !!expandedComments[post.id];
             const mediaCount = post.mediaItems?.length || 0;
-            const allMediaUrls = post.mediaItems?.map((m) => m.fileUrl) || [];
+            const allMediaUrls =
+              post.mediaItems?.map((m) => getMediaUrl(m.fileUrl)) || [];
             const isReactionHovered = hoverReactionPostId === post.id;
             const isLongText = post.content.length > 250;
             const isTextExpanded = expandedTextPostIds.has(post.id);
-            const isShortStatus = post.content.length < 85 && mediaCount === 0;
+            const isThemedPost =
+              post.theme && post.theme !== "none" && mediaCount === 0;
+            const bgStyleObj = isThemedPost
+              ? POST_BACKGROUNDS.find((b) => b.id === post.theme)
+              : null;
+            const isShortStatus =
+              post.content.length < 85 && mediaCount === 0 && !isThemedPost;
 
             return (
               <article
@@ -607,12 +635,14 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                     <div className="flex items-center gap-2">
                       {post.isPinned && (
                         <span className="flex items-center gap-1.5 font-semibold text-amber-500">
-                          <Pin className="w-3.5 h-3.5 fill-amber-500" /> Pinned Post
+                          <Pin className="w-3.5 h-3.5 fill-amber-500" /> Pinned
+                          Post
                         </span>
                       )}
                       {post.isAnnouncement && (
                         <span className="flex items-center gap-1.5 font-semibold text-rose-500">
-                          <Megaphone className="w-3.5 h-3.5 fill-rose-500" /> Official Announcement
+                          <Megaphone className="w-3.5 h-3.5 fill-rose-500" />{" "}
+                          Official Announcement
                         </span>
                       )}
                     </div>
@@ -631,7 +661,7 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                     <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-700 to-indigo-800 text-white font-bold flex items-center justify-center text-sm shadow-xs overflow-hidden shrink-0 cursor-pointer">
                       {post.author.avatarUrl ? (
                         <img
-                          src={post.author.avatarUrl}
+                          src={getMediaUrl(post.author.avatarUrl)}
                           alt={post.author.fullName}
                           className="w-full h-full object-cover"
                         />
@@ -663,7 +693,10 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                         <span>{formatTimeAgo(post.createdAt)}</span>
                         <span>·</span>
                         {post.visibility === "public" ? (
-                          <span className="flex items-center gap-0.5" title="Public">
+                          <span
+                            className="flex items-center gap-0.5"
+                            title="Public"
+                          >
                             <Globe className="w-3.5 h-3.5" />
                           </span>
                         ) : post.visibility === "campus" ? (
@@ -677,7 +710,10 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                             </span>
                           </span>
                         ) : (
-                          <span className="flex items-center gap-0.5" title="Only me">
+                          <span
+                            className="flex items-center gap-0.5"
+                            title="Only me"
+                          >
                             <Lock className="w-3.5 h-3.5" />
                           </span>
                         )}
@@ -761,33 +797,43 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                   </div>
                 </div>
 
-                {/* 2. Post Content Text (with Short-Text Enlargement and See More toggle) */}
-                <div className="px-4 pt-1 pb-2">
-                  <div
-                    className={
-                      isShortStatus
-                        ? "text-[20px] font-normal leading-snug text-[#050505] dark:text-[#E4E6EB]"
-                        : "text-[15px] leading-relaxed text-[#050505] dark:text-[#E4E6EB]"
-                    }
-                  >
-                    {isLongText && !isTextExpanded ? (
-                      <>
-                        {renderFormattedText(post.content.slice(0, 240))}...{" "}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setExpandedTextPostIds((prev) => new Set(prev).add(post.id))
-                          }
-                          className="font-semibold text-[#050505] dark:text-[#E4E6EB] hover:underline"
-                        >
-                          See more
-                        </button>
-                      </>
-                    ) : (
-                      renderFormattedText(post.content)
-                    )}
+                {/* 2. Post Content Text (Colored Theme Background or Standard Text) */}
+                {isThemedPost && bgStyleObj ? (
+                  <div className={`mx-3 sm:mx-4 my-2 ${bgStyleObj.class}`}>
+                    <p className="whitespace-pre-wrap select-text leading-relaxed">
+                      {renderFormattedText(post.content)}
+                    </p>
                   </div>
-                </div>
+                ) : (
+                  <div className="px-4 pt-1 pb-2">
+                    <div
+                      className={
+                        isShortStatus
+                          ? "text-[20px] font-normal leading-snug text-[#050505] dark:text-[#E4E6EB]"
+                          : "text-[15px] leading-relaxed text-[#050505] dark:text-[#E4E6EB]"
+                      }
+                    >
+                      {isLongText && !isTextExpanded ? (
+                        <>
+                          {renderFormattedText(post.content.slice(0, 240))}...{" "}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedTextPostIds((prev) =>
+                                new Set(prev).add(post.id),
+                              )
+                            }
+                            className="font-semibold text-[#050505] dark:text-[#E4E6EB] hover:underline"
+                          >
+                            See more
+                          </button>
+                        </>
+                      ) : (
+                        renderFormattedText(post.content)
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* 3. Facebook Multi-Image Collage */}
                 {mediaCount > 0 && (
@@ -796,10 +842,10 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                       mediaCount === 1
                         ? "grid-cols-1 max-h-[500px]"
                         : mediaCount === 2
-                        ? "grid-cols-2 max-h-[400px]"
-                        : mediaCount === 3
-                        ? "grid-cols-3 max-h-[350px]"
-                        : "grid-cols-2 max-h-[400px]"
+                          ? "grid-cols-2 max-h-[400px]"
+                          : mediaCount === 3
+                            ? "grid-cols-3 max-h-[350px]"
+                            : "grid-cols-2 max-h-[400px]"
                     }`}
                   >
                     {post.mediaItems.slice(0, 4).map((m, idx) => {
@@ -813,7 +859,7 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                           }`}
                         >
                           <img
-                            src={m.fileUrl}
+                            src={getMediaUrl(m.fileUrl)}
                             alt={m.fileName}
                             className="w-full h-full object-cover group-hover:scale-101 transition-transform duration-300"
                           />
@@ -833,21 +879,42 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                   {/* Left: Overlapping Reaction Badges + Total Reaction Count */}
                   <div className="flex items-center gap-1.5">
                     <div className="flex -space-x-1 items-center">
-                      <span className="w-[18px] h-[18px] rounded-full bg-[#1877F2] text-white flex items-center justify-center text-[10px] shadow-xs">
-                        👍
-                      </span>
-                      {post.reactionCount > 1 && (
-                        <span className="w-[18px] h-[18px] rounded-full bg-[#FA383E] text-white flex items-center justify-center text-[10px] shadow-xs">
-                          ❤️
-                        </span>
-                      )}
+                      {(post.reactionTypes && post.reactionTypes.length > 0
+                        ? post.reactionTypes
+                        : post.hasLiked
+                          ? [post.userReaction || "like"]
+                          : []
+                      )
+                        .slice(0, 3)
+                        .map((rType) => {
+                          const rObj =
+                            REACTION_EMOJIS.find((r) => r.id === rType) || {
+                              id: "like",
+                              label: "Like",
+                              emoji: "👍",
+                            };
+                          return (
+                            <span
+                              key={rType}
+                              className="w-[18px] h-[18px] rounded-full bg-white dark:bg-[#242526] shadow-xs flex items-center justify-center text-[10px]"
+                            >
+                              {rObj.emoji}
+                            </span>
+                          );
+                        })}
+                      {(!post.reactionTypes || post.reactionTypes.length === 0) &&
+                        post.reactionCount > 0 && (
+                          <span className="w-[18px] h-[18px] rounded-full bg-[#1877F2] text-white flex items-center justify-center text-[10px] shadow-xs">
+                            👍
+                          </span>
+                        )}
                     </div>
                     <span className="hover:underline cursor-pointer font-normal text-[#65676B] dark:text-[#B0B3B8]">
                       {post.reactionCount > 0 ? post.reactionCount : 0}
                     </span>
                   </div>
 
-                  {/* Right: Comments Count & Shares Count */}
+                  {/* Right: Comments Count */}
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
@@ -861,24 +928,11 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                     >
                       {post.commentsCount} comments
                     </button>
-                    <span>·</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(
-                          `${window.location.origin}/admin/feed#post-${post.id}`,
-                        );
-                        toast.success("Link copied!");
-                      }}
-                      className="hover:underline"
-                    >
-                      Share
-                    </button>
                   </div>
                 </div>
 
-                {/* 5. Facebook 3-Button Action Row (Like, Comment, Share) */}
-                <div className="mx-4 my-1 border-y border-gray-200/80 dark:border-neutral-800 py-0.5 grid grid-cols-3 gap-1 relative">
+                {/* 5. Facebook 2-Button Action Row (Like/React, Comment) */}
+                <div className="mx-4 my-1 border-y border-gray-200/80 dark:border-neutral-800 py-0.5 grid grid-cols-2 gap-1 relative">
                   {/* Floating Facebook Reaction Emoji Dock on Hover */}
                   {isReactionHovered && (
                     <div
@@ -891,10 +945,10 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                           key={r.id}
                           type="button"
                           onClick={() => {
-                            handleToggleLike(post.id);
+                            handleToggleLike(post.id, r.id);
                             setHoverReactionPostId(null);
                           }}
-                          className="text-2xl hover:scale-135 transition-transform duration-150 transform origin-bottom px-1"
+                          className="text-2xl hover:scale-135 transition-transform duration-150 transform origin-bottom px-1 cursor-pointer"
                           title={r.label}
                         >
                           {r.emoji}
@@ -903,30 +957,54 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                     </div>
                   )}
 
-                  {/* Like Button */}
+                  {/* Like / Reaction Button */}
                   <div
                     className="relative"
                     onMouseEnter={() => handleReactionMouseEnter(post.id)}
                     onMouseLeave={handleReactionMouseLeave}
                   >
-                    <button
-                      type="button"
-                      onClick={() => handleToggleLike(post.id)}
-                      className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3A3B3C] text-[14px] font-semibold transition-colors ${
-                        post.hasLiked
-                          ? "text-[#1877F2]"
-                          : "text-[#65676B] dark:text-[#B0B3B8]"
-                      }`}
-                    >
-                      <ThumbsUp
-                        className={`w-4 h-4 ${
-                          post.hasLiked
-                            ? "fill-[#1877F2] text-[#1877F2] scale-110"
-                            : ""
-                        }`}
-                      />
-                      <span>Like</span>
-                    </button>
+                    {(() => {
+                      const userReactionObj = post.hasLiked
+                        ? REACTION_EMOJIS.find((r) => r.id === post.userReaction) || {
+                            id: "like",
+                            label: "Like",
+                            emoji: "👍",
+                            color: "text-[#1877F2]",
+                          }
+                        : null;
+
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (post.hasLiked) {
+                              handleToggleLike(post.id, post.userReaction || "like");
+                            } else {
+                              handleToggleLike(post.id, "like");
+                            }
+                          }}
+                          className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3A3B3C] text-[14px] font-semibold transition-colors ${
+                            userReactionObj
+                              ? userReactionObj.color
+                              : "text-[#65676B] dark:text-[#B0B3B8]"
+                          }`}
+                        >
+                          {userReactionObj ? (
+                            <>
+                              <span className="text-base leading-none">
+                                {userReactionObj.emoji}
+                              </span>
+                              <span>{userReactionObj.label}</span>
+                            </>
+                          ) : (
+                            <>
+                              <ThumbsUp className="w-4 h-4 text-[#65676B] dark:text-[#B0B3B8]" />
+                              <span>Like</span>
+                            </>
+                          )}
+                        </button>
+                      );
+                    })()}
                   </div>
 
                   {/* Comment Button */}
@@ -942,21 +1020,6 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                   >
                     <MessageCircle className="w-4 h-4" />
                     <span>Comment</span>
-                  </button>
-
-                  {/* Share Button */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        `${window.location.origin}/admin/feed#post-${post.id}`,
-                      );
-                      toast.success("Post link copied to clipboard!");
-                    }}
-                    className="flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3A3B3C] text-[14px] font-semibold text-[#65676B] dark:text-[#B0B3B8] transition-colors"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    <span>Share</span>
                   </button>
                 </div>
 
@@ -1060,7 +1123,9 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                     {post.comments?.length > 0 ? (
                       <div className="space-y-3 pt-1">
                         {post.comments.map((comment) => {
-                          const isCommentLiked = likedCommentIds.has(comment.id);
+                          const isCommentLiked = likedCommentIds.has(
+                            comment.id,
+                          );
 
                           return (
                             <div key={comment.id} className="space-y-1.5">
@@ -1090,7 +1155,9 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                                   <div className="flex items-center gap-3 text-[12px] font-semibold text-[#65676B] dark:text-[#B0B3B8] ml-3 mt-1">
                                     <button
                                       type="button"
-                                      onClick={() => handleToggleCommentLike(comment.id)}
+                                      onClick={() =>
+                                        handleToggleCommentLike(comment.id)
+                                      }
                                       className={`hover:underline cursor-pointer ${
                                         isCommentLiked ? "text-[#1877F2]" : ""
                                       }`}
@@ -1116,7 +1183,10 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                                       <button
                                         type="button"
                                         onClick={() =>
-                                          handleDeleteComment(post.id, comment.id)
+                                          handleDeleteComment(
+                                            post.id,
+                                            comment.id,
+                                          )
                                         }
                                         className="text-[#65676B] hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
                                       >
@@ -1128,66 +1198,76 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                               </div>
 
                               {/* Nested Replies with Facebook connector indentation */}
-                              {comment.replies && comment.replies.length > 0 && (
-                                <div className="ml-10 pl-3 border-l-2 border-gray-200 dark:border-neutral-700 space-y-2 pt-1">
-                                  {comment.replies.map((reply) => {
-                                    const isReplyLiked = likedCommentIds.has(reply.id);
+                              {comment.replies &&
+                                comment.replies.length > 0 && (
+                                  <div className="ml-10 pl-3 border-l-2 border-gray-200 dark:border-neutral-700 space-y-2 pt-1">
+                                    {comment.replies.map((reply) => {
+                                      const isReplyLiked = likedCommentIds.has(
+                                        reply.id,
+                                      );
 
-                                    return (
-                                      <div
-                                        key={reply.id}
-                                        className="flex items-start gap-2 group"
-                                      >
-                                        <div className="w-6 h-6 rounded-full bg-slate-800 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
-                                          {reply.author.fullName.charAt(0)}
-                                        </div>
-                                        <div className="flex-1">
-                                          <div className="bg-[#F0F2F5] dark:bg-[#3A3B3C] rounded-[16px] px-3 py-1.5 inline-block max-w-[92%] relative">
-                                            <h6 className="font-semibold text-[12px] text-[#050505] dark:text-[#E4E6EB]">
-                                              {reply.author.fullName}
-                                            </h6>
-                                            <p className="text-[13px] text-[#050505] dark:text-[#E4E6EB] mt-0.5 leading-snug">
-                                              {reply.content}
-                                            </p>
-                                            {isReplyLiked && (
-                                              <span className="absolute -bottom-2 -right-1 bg-white dark:bg-[#242526] border border-gray-200 dark:border-neutral-700 rounded-full px-1 py-0.2 shadow-xs flex items-center gap-0.5 text-[9px]">
-                                                👍 1
-                                              </span>
-                                            )}
+                                      return (
+                                        <div
+                                          key={reply.id}
+                                          className="flex items-start gap-2 group"
+                                        >
+                                          <div className="w-6 h-6 rounded-full bg-slate-800 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                                            {reply.author.fullName.charAt(0)}
                                           </div>
-                                          <div className="flex items-center gap-3 text-[11px] text-[#65676B] dark:text-[#B0B3B8] ml-3 mt-0.5 font-semibold">
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                handleToggleCommentLike(reply.id)
-                                              }
-                                              className={`hover:underline cursor-pointer ${
-                                                isReplyLiked ? "text-[#1877F2]" : ""
-                                              }`}
-                                            >
-                                              Like
-                                            </button>
-                                            <span className="font-normal">
-                                              {formatTimeAgo(reply.createdAt)}
-                                            </span>
-                                            {reply.canDelete && (
+                                          <div className="flex-1">
+                                            <div className="bg-[#F0F2F5] dark:bg-[#3A3B3C] rounded-[16px] px-3 py-1.5 inline-block max-w-[92%] relative">
+                                              <h6 className="font-semibold text-[12px] text-[#050505] dark:text-[#E4E6EB]">
+                                                {reply.author.fullName}
+                                              </h6>
+                                              <p className="text-[13px] text-[#050505] dark:text-[#E4E6EB] mt-0.5 leading-snug">
+                                                {reply.content}
+                                              </p>
+                                              {isReplyLiked && (
+                                                <span className="absolute -bottom-2 -right-1 bg-white dark:bg-[#242526] border border-gray-200 dark:border-neutral-700 rounded-full px-1 py-0.2 shadow-xs flex items-center gap-0.5 text-[9px]">
+                                                  👍 1
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div className="flex items-center gap-3 text-[11px] text-[#65676B] dark:text-[#B0B3B8] ml-3 mt-0.5 font-semibold">
                                               <button
                                                 type="button"
                                                 onClick={() =>
-                                                  handleDeleteComment(post.id, reply.id)
+                                                  handleToggleCommentLike(
+                                                    reply.id,
+                                                  )
                                                 }
-                                                className="text-[#65676B] hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                className={`hover:underline cursor-pointer ${
+                                                  isReplyLiked
+                                                    ? "text-[#1877F2]"
+                                                    : ""
+                                                }`}
                                               >
-                                                <Trash2 className="w-2.5 h-2.5" />
+                                                Like
                                               </button>
-                                            )}
+                                              <span className="font-normal">
+                                                {formatTimeAgo(reply.createdAt)}
+                                              </span>
+                                              {reply.canDelete && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    handleDeleteComment(
+                                                      post.id,
+                                                      reply.id,
+                                                    )
+                                                  }
+                                                  className="text-[#65676B] hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                  <Trash2 className="w-2.5 h-2.5" />
+                                                </button>
+                                              )}
+                                            </div>
                                           </div>
                                         </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
+                                      );
+                                    })}
+                                  </div>
+                                )}
                             </div>
                           );
                         })}
@@ -1253,7 +1333,9 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                       )}
                       <select
                         value={newVisibility}
-                        onChange={(e) => setNewVisibility(e.target.value as any)}
+                        onChange={(e) =>
+                          setNewVisibility(e.target.value as any)
+                        }
                         className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer"
                       >
                         {isMultiCampus && (
@@ -1287,7 +1369,8 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
               <div
                 className={`relative rounded-xl transition-all ${
                   selectedBgStyle !== "none"
-                    ? POST_BACKGROUNDS.find((b) => b.id === selectedBgStyle)?.class
+                    ? POST_BACKGROUNDS.find((b) => b.id === selectedBgStyle)
+                        ?.class
                     : ""
                 }`}
               >
@@ -1321,14 +1404,14 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                         bg.id === "none"
                           ? "bg-gray-100 dark:bg-neutral-800 border-gray-300 dark:border-neutral-600"
                           : bg.id === "ocean"
-                          ? "bg-gradient-to-tr from-blue-600 to-cyan-500 border-blue-400"
-                          : bg.id === "sunset"
-                          ? "bg-gradient-to-tr from-rose-500 to-yellow-400 border-amber-400"
-                          : bg.id === "berry"
-                          ? "bg-gradient-to-tr from-purple-800 to-pink-600 border-purple-400"
-                          : bg.id === "emerald"
-                          ? "bg-gradient-to-tr from-emerald-700 to-teal-400 border-emerald-400"
-                          : "bg-gradient-to-tr from-red-600 to-amber-500 border-red-400"
+                            ? "bg-gradient-to-tr from-blue-600 to-cyan-500 border-blue-400"
+                            : bg.id === "sunset"
+                              ? "bg-gradient-to-tr from-rose-500 to-yellow-400 border-amber-400"
+                              : bg.id === "berry"
+                                ? "bg-gradient-to-tr from-purple-800 to-pink-600 border-purple-400"
+                                : bg.id === "emerald"
+                                  ? "bg-gradient-to-tr from-emerald-700 to-teal-400 border-emerald-400"
+                                  : "bg-gradient-to-tr from-red-600 to-amber-500 border-red-400"
                       } ${
                         selectedBgStyle === bg.id
                           ? "scale-115 ring-2 ring-[#1877F2]"
@@ -1356,12 +1439,22 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                       <button
                         type="button"
                         onClick={() => removeFile(i)}
-                        className="absolute top-1.5 right-1.5 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-full opacity-90 group-hover:opacity-100 transition-all"
+                        className="absolute top-1.5 right-1.5 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-full opacity-90 group-hover:opacity-100 transition-all cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ))}
+                  {filePreviews.length < 10 && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="aspect-video rounded-xl border-2 border-dashed border-gray-300 dark:border-neutral-700 hover:border-[#1877F2] dark:hover:border-[#1877F2] flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-[#1877F2] transition-colors cursor-pointer"
+                    >
+                      <ImageIcon className="w-5 h-5" />
+                      <span className="text-xs font-semibold">Add more</span>
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1371,30 +1464,13 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                   Add to your post
                 </span>
                 <div className="flex items-center gap-1">
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-700 text-[#45BD62] transition-colors"
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-700 text-[#45BD62] transition-colors cursor-pointer"
                     title="Photo/video"
                   >
                     <ImageIcon className="w-5 h-5" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => toast.info("Faculty tagging active in composer")}
-                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-700 text-[#1877F2] transition-colors"
-                    title="Tag faculty"
-                  >
-                    <Users className="w-5 h-5" />
                   </button>
 
                   <button
@@ -1411,7 +1487,9 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                       type="button"
                       onClick={() => setIsAnnouncement((prev) => !prev)}
                       className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors ${
-                        isAnnouncement ? "text-rose-500 bg-rose-500/10" : "text-[#65676B] dark:text-[#B0B3B8]"
+                        isAnnouncement
+                          ? "text-rose-500 bg-rose-500/10"
+                          : "text-[#65676B] dark:text-[#B0B3B8]"
                       }`}
                       title="Official announcement"
                     >
@@ -1441,7 +1519,10 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
               {/* Full Width Facebook Blue "Post" Button */}
               <Button
                 type="submit"
-                disabled={submitting || (!newContent.trim() && selectedFiles.length === 0)}
+                disabled={
+                  submitting ||
+                  (!newContent.trim() && selectedFiles.length === 0)
+                }
                 className="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold py-2.5 rounded-xl shadow-md disabled:opacity-50 transition-all text-sm"
               >
                 {submitting ? (
@@ -1487,6 +1568,41 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                 onChange={(e) => setEditContent(e.target.value)}
                 className="min-h-[120px] text-sm"
               />
+
+              {(editingPost.mediaItems?.length || 0) === 0 && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[#65676B] dark:text-[#B0B3B8]">
+                    Post Theme
+                  </label>
+                  <div className="flex items-center gap-1.5 pt-0.5">
+                    {POST_BACKGROUNDS.map((bg) => (
+                      <button
+                        key={bg.id}
+                        type="button"
+                        onClick={() => setEditTheme(bg.id)}
+                        className={`w-6 h-6 rounded-md border transition-transform cursor-pointer ${
+                          bg.id === "none"
+                            ? "bg-gray-100 dark:bg-neutral-800 border-gray-300 dark:border-neutral-600"
+                            : bg.id === "ocean"
+                              ? "bg-gradient-to-tr from-blue-600 to-cyan-500 border-blue-400"
+                              : bg.id === "sunset"
+                                ? "bg-gradient-to-tr from-rose-500 to-yellow-400 border-amber-400"
+                                : bg.id === "berry"
+                                  ? "bg-gradient-to-tr from-purple-800 to-pink-600 border-purple-400"
+                                  : bg.id === "emerald"
+                                    ? "bg-gradient-to-tr from-emerald-700 to-teal-400 border-emerald-400"
+                                    : "bg-gradient-to-tr from-red-600 to-amber-500 border-red-400"
+                        } ${
+                          editTheme === bg.id
+                            ? "scale-115 ring-2 ring-[#1877F2]"
+                            : "hover:scale-105"
+                        }`}
+                        title={bg.label}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-[#65676B] dark:text-[#B0B3B8]">
@@ -1550,7 +1666,8 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
             </div>
 
             <p className="text-sm text-[#65676B] dark:text-[#B0B3B8]">
-              Are you sure you want to permanently delete this post and all of its comments? This action cannot be undone.
+              Are you sure you want to permanently delete this post and all of
+              its comments? This action cannot be undone.
             </p>
 
             <div className="flex items-center justify-end gap-2 pt-3">
@@ -1633,6 +1750,16 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
           </div>
         </div>
       )}
+
+      {/* Hidden File Input for Image Uploads */}
+      <input
+        type="file"
+        multiple
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+      />
     </div>
   );
 }

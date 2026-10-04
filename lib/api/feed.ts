@@ -29,6 +29,7 @@ export interface FeedCommentItem {
 export interface FeedPostItem {
   id: string;
   content: string;
+  theme?: string;
   visibility: PostVisibility;
   isAnnouncement: boolean;
   isPinned: boolean;
@@ -49,6 +50,8 @@ export interface FeedPostItem {
   mediaItems: FeedMediaItem[];
   reactionCount: number;
   hasLiked: boolean;
+  userReaction?: string | null;
+  reactionTypes?: string[];
   commentsCount: number;
   comments: FeedCommentItem[];
   canEdit: boolean;
@@ -77,7 +80,23 @@ export interface CreateFeedPostInput {
   schoolId?: string;
   isAnnouncement?: boolean;
   isPinned?: boolean;
+  theme?: string;
   files?: File[];
+}
+
+export function getMediaUrl(path: string | null | undefined): string {
+  if (!path) return "";
+  if (
+    path.startsWith("http://") ||
+    path.startsWith("https://") ||
+    path.startsWith("blob:") ||
+    path.startsWith("data:")
+  ) {
+    return path;
+  }
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5173";
+  return `${apiUrl}${cleanPath}`;
 }
 
 /**
@@ -104,6 +123,7 @@ export async function createFeedPost(input: CreateFeedPostInput): Promise<FeedPo
     formData.append("content", input.content);
     if (input.visibility) formData.append("visibility", input.visibility);
     if (input.schoolId) formData.append("schoolId", input.schoolId);
+    if (input.theme) formData.append("theme", input.theme);
     if (input.isAnnouncement !== undefined) {
       formData.append("isAnnouncement", String(input.isAnnouncement));
     }
@@ -123,6 +143,7 @@ export async function createFeedPost(input: CreateFeedPostInput): Promise<FeedPo
     schoolId: input.schoolId,
     isAnnouncement: input.isAnnouncement,
     isPinned: input.isPinned,
+    theme: input.theme || "none",
   });
 }
 
@@ -131,7 +152,7 @@ export async function createFeedPost(input: CreateFeedPostInput): Promise<FeedPo
  */
 export async function updateFeedPost(
   postId: string,
-  input: { content: string; visibility?: PostVisibility },
+  input: { content: string; visibility?: PostVisibility; theme?: string },
 ): Promise<FeedPostItem> {
   return apiClient.patch<FeedPostItem>(`/feed/${postId}`, input);
 }
@@ -150,8 +171,14 @@ export async function deleteFeedPost(
  */
 export async function toggleFeedReaction(
   postId: string,
-): Promise<{ liked: boolean; reactionCount: number }> {
-  return apiClient.post<{ liked: boolean; reactionCount: number }>(`/feed/${postId}/react`, {});
+  type: string = "like",
+): Promise<{
+  liked: boolean;
+  userReaction?: string | null;
+  reactionCount: number;
+  reactionTypes?: string[];
+}> {
+  return apiClient.post(`/feed/${postId}/react`, { type });
 }
 
 /**
