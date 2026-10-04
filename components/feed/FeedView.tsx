@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   ThumbsUp,
   MessageCircle,
@@ -16,14 +17,12 @@ import {
   Pin,
   Edit2,
   Trash2,
-  Link2,
   Send,
   CornerDownRight,
   ChevronLeft,
   ChevronRight,
   Download,
   AlertCircle,
-  Camera,
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -33,7 +32,6 @@ import {
   FeedCommentItem,
   fetchFeed,
   createFeedPost,
-  updateFeedPost,
   deleteFeedPost,
   toggleFeedReaction,
   addFeedComment,
@@ -97,6 +95,7 @@ const POST_BACKGROUNDS = [
 
 export function FeedView({ initialFilter = "all" }: FeedViewProps) {
   const { user } = useAuth();
+  const router = useRouter();
   const isMultiCampus = user?.role === "admin" || user?.role === "director";
 
   const [posts, setPosts] = useState<FeedPostItem[]>([]);
@@ -107,13 +106,47 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
   const [schools, setSchools] = useState<School[]>([]);
 
-  // Hidden posts set (Facebook "Hide post" functionality)
-  const [hiddenPostIds, setHiddenPostIds] = useState<Set<string>>(new Set());
-
   // Expandable post text state ("See more")
   const [expandedTextPostIds, setExpandedTextPostIds] = useState<Set<string>>(
     new Set(),
   );
+
+  const toggleExpandText = (postId: string) => {
+    setExpandedTextPostIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(postId)) {
+        next.delete(postId);
+      } else {
+        next.add(postId);
+      }
+      return next;
+    });
+  };
+
+  // Download Image Helper
+  const handleDownloadImage = async (imageUrl: string) => {
+    try {
+      toast.loading("Downloading image...", { id: "download-img" });
+      const res = await fetch(imageUrl);
+      if (!res.ok) throw new Error("Failed to download");
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      const fileName =
+        imageUrl.split("/").pop() || `feed-image-${Date.now()}.png`;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success("Image downloaded successfully", { id: "download-img" });
+    } catch (err) {
+      console.error("Failed to download image:", err);
+      toast.dismiss("download-img");
+      window.open(imageUrl, "_blank");
+    }
+  };
 
   // Comment Likes map
   const [likedCommentIds, setLikedCommentIds] = useState<Set<string>>(
@@ -142,14 +175,6 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
   >([]);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  // Edit Modal State
-  const [editingPost, setEditingPost] = useState<FeedPostItem | null>(null);
-  const [editContent, setEditContent] = useState("");
-  const [editTheme, setEditTheme] = useState<string>("none");
-  const [editVisibility, setEditVisibility] =
-    useState<PostVisibility>("campus");
-  const [savingEdit, setSavingEdit] = useState(false);
 
   // Delete Confirm State
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
@@ -278,46 +303,14 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
     }
   };
 
-  // Open Edit Modal
+  // Open Edit Page
   const handleStartEdit = (post: FeedPostItem) => {
     if (!post.canEdit) {
       toast.error("You can only edit your own posts.");
       return;
     }
-    setEditingPost(post);
-    setEditContent(post.content);
-    setEditTheme(post.theme || "none");
-    setEditVisibility(post.visibility);
     setActiveMenuPostId(null);
-  };
-
-  // Save Edit
-  const handleSaveEdit = async () => {
-    if (!editingPost) return;
-    if (!editContent.trim()) {
-      toast.error("Post content cannot be empty.");
-      return;
-    }
-
-    setSavingEdit(true);
-    try {
-      const updated = await updateFeedPost(editingPost.id, {
-        content: editContent.trim(),
-        visibility: editVisibility,
-        theme:
-          (editingPost.mediaItems?.length || 0) === 0 ? editTheme : "none",
-      });
-
-      setPosts((prev) =>
-        prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)),
-      );
-      toast.success("Post updated successfully!");
-      setEditingPost(null);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update post");
-    } finally {
-      setSavingEdit(false);
-    }
+    router.push(`/feed/edit/${post.id}`);
   };
 
   // Confirm Delete Post
@@ -515,14 +508,14 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
     });
   };
 
-  const visiblePosts = posts.filter((p) => !hiddenPostIds.has(p.id));
+  const visiblePosts = posts;
 
   return (
-    <div className="w-full max-w-[590px] md:max-w-[620px] mx-auto space-y-4 pb-20 select-text">
+    <div className="w-full max-w-[590px] md:max-w-[620px] mx-auto pb-20 select-text">
       {/* ============================================================== */}
       {/* 1. FACEBOOK POST COMPOSER CARD                                 */}
       {/* ============================================================== */}
-      <div className="bg-white dark:bg-[#242526] rounded-xl border border-gray-200/80 dark:border-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.1)] p-3 sm:p-4 space-y-3">
+      <div className="bg-white mb-4 dark:bg-[#242526] rounded-xl border border-gray-200/80 dark:border-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.1)] p-3 sm:p-4 space-y-3">
         {/* Top Row: User Avatar + Pill Input Box */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-sm overflow-hidden shrink-0 cursor-pointer">
@@ -749,20 +742,6 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                               Edit post
                             </button>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(
-                                `${window.location.origin}/admin/feed#post-${post.id}`,
-                              );
-                              toast.success("Post link copied to clipboard!");
-                              setActiveMenuPostId(null);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-gray-100 dark:hover:bg-[#3A3B3C] text-left text-[#050505] dark:text-[#E4E6EB] transition-colors"
-                          >
-                            <Link2 className="w-4 h-4 text-emerald-500" />
-                            Copy post link
-                          </button>
                           {post.canDelete && (
                             <button
                               type="button"
@@ -781,53 +760,52 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                         </div>
                       )}
                     </div>
-
-                    {/* Facebook Close / Hide Post (X) */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setHiddenPostIds((prev) => new Set(prev).add(post.id));
-                        toast.info("Post hidden from your feed");
-                      }}
-                      title="Hide post"
-                      className="w-9 h-9 rounded-full hover:bg-gray-100 dark:hover:bg-[#3A3B3C] flex items-center justify-center text-[#65676B] dark:text-[#B0B3B8] transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
                   </div>
                 </div>
 
                 {/* 2. Post Content Text (Colored Theme Background or Standard Text) */}
                 {isThemedPost && bgStyleObj ? (
                   <div className={`mx-3 sm:mx-4 my-2 ${bgStyleObj.class}`}>
-                    <p className="whitespace-pre-wrap select-text leading-relaxed">
+                    <p className="whitespace-pre-wrap select-text leading-relaxed break-words [overflow-wrap:anywhere]">
                       {renderFormattedText(post.content)}
                     </p>
                   </div>
                 ) : (
                   <div className="px-4 pt-1 pb-2">
                     <div
-                      className={
+                      className={`${
                         isShortStatus
-                          ? "text-[20px] font-normal leading-snug text-[#050505] dark:text-[#E4E6EB]"
-                          : "text-[15px] leading-relaxed text-[#050505] dark:text-[#E4E6EB]"
-                      }
+                          ? "text-[20px] font-normal leading-snug"
+                          : "text-[15px] leading-relaxed"
+                      } text-[#050505] dark:text-[#E4E6EB] break-words [overflow-wrap:anywhere] whitespace-pre-wrap`}
                     >
-                      {isLongText && !isTextExpanded ? (
-                        <>
-                          {renderFormattedText(post.content.slice(0, 240))}...{" "}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExpandedTextPostIds((prev) =>
-                                new Set(prev).add(post.id),
-                              )
-                            }
-                            className="font-semibold text-[#050505] dark:text-[#E4E6EB] hover:underline"
-                          >
-                            See more
-                          </button>
-                        </>
+                      {isLongText ? (
+                        !isTextExpanded ? (
+                          <>
+                            <span>
+                              {renderFormattedText(post.content.slice(0, 240))}
+                              ...
+                            </span>{" "}
+                            <button
+                              type="button"
+                              onClick={() => toggleExpandText(post.id)}
+                              className="font-semibold text-[#1877F2] hover:underline cursor-pointer inline-block ml-1"
+                            >
+                              See more
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span>{renderFormattedText(post.content)}</span>{" "}
+                            <button
+                              type="button"
+                              onClick={() => toggleExpandText(post.id)}
+                              className="font-semibold text-[#1877F2] hover:underline cursor-pointer inline-block ml-1"
+                            >
+                              See less
+                            </button>
+                          </>
+                        )
                       ) : (
                         renderFormattedText(post.content)
                       )}
@@ -836,32 +814,79 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                 )}
 
                 {/* 3. Facebook Multi-Image Collage */}
-                {mediaCount > 0 && (
+                {mediaCount === 1 && (
                   <div
-                    className={`grid gap-0.5 bg-gray-100 dark:bg-neutral-800 mt-2 overflow-hidden ${
-                      mediaCount === 1
-                        ? "grid-cols-1 max-h-[500px]"
-                        : mediaCount === 2
-                          ? "grid-cols-2 max-h-[400px]"
-                          : mediaCount === 3
-                            ? "grid-cols-3 max-h-[350px]"
-                            : "grid-cols-2 max-h-[400px]"
-                    }`}
+                    onClick={() => openLightbox(allMediaUrls, 0)}
+                    className="mt-2 w-full max-h-[550px] bg-neutral-100 dark:bg-neutral-800/40 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer group"
                   >
+                    <img
+                      src={getMediaUrl(post.mediaItems[0].fileUrl)}
+                      alt={post.mediaItems[0].fileName}
+                      className="max-h-[550px] w-full object-contain group-hover:scale-[1.01] transition-transform duration-200"
+                    />
+                  </div>
+                )}
+
+                {mediaCount === 2 && (
+                  <div className="grid grid-cols-2 gap-1 mt-2 aspect-[4/3] rounded-lg overflow-hidden bg-neutral-100 dark:bg-neutral-800">
+                    {post.mediaItems.slice(0, 2).map((m, idx) => (
+                      <div
+                        key={m.id}
+                        onClick={() => openLightbox(allMediaUrls, idx)}
+                        className="relative group bg-neutral-200 dark:bg-neutral-700 cursor-pointer overflow-hidden h-full"
+                      >
+                        <img
+                          src={getMediaUrl(m.fileUrl)}
+                          alt={m.fileName}
+                          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-200"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {mediaCount === 3 && (
+                  <div className="grid grid-cols-2 grid-rows-2 gap-1 mt-2 aspect-square rounded-lg overflow-hidden bg-neutral-100 dark:bg-neutral-800">
+                    <div
+                      onClick={() => openLightbox(allMediaUrls, 0)}
+                      className="row-span-2 col-span-1 relative group bg-neutral-200 dark:bg-neutral-700 cursor-pointer overflow-hidden h-full"
+                    >
+                      <img
+                        src={getMediaUrl(post.mediaItems[0].fileUrl)}
+                        alt={post.mediaItems[0].fileName}
+                        className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-200"
+                      />
+                    </div>
+                    {post.mediaItems.slice(1, 3).map((m, idx) => (
+                      <div
+                        key={m.id}
+                        onClick={() => openLightbox(allMediaUrls, idx + 1)}
+                        className="col-span-1 row-span-1 relative group bg-neutral-200 dark:bg-neutral-700 cursor-pointer overflow-hidden h-full"
+                      >
+                        <img
+                          src={getMediaUrl(m.fileUrl)}
+                          alt={m.fileName}
+                          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-200"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {mediaCount >= 4 && (
+                  <div className="grid grid-cols-2 grid-rows-2 gap-1 mt-2 aspect-square rounded-lg overflow-hidden bg-neutral-100 dark:bg-neutral-800">
                     {post.mediaItems.slice(0, 4).map((m, idx) => {
                       const isFourth = idx === 3 && mediaCount > 4;
                       return (
                         <div
                           key={m.id}
                           onClick={() => openLightbox(allMediaUrls, idx)}
-                          className={`relative group bg-gray-200 dark:bg-neutral-700 cursor-pointer overflow-hidden aspect-square ${
-                            mediaCount === 1 ? "aspect-auto max-h-[500px]" : ""
-                          }`}
+                          className="col-span-1 row-span-1 relative group bg-neutral-200 dark:bg-neutral-700 cursor-pointer overflow-hidden h-full"
                         >
                           <img
                             src={getMediaUrl(m.fileUrl)}
                             alt={m.fileName}
-                            className="w-full h-full object-cover group-hover:scale-101 transition-transform duration-300"
+                            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-200"
                           />
                           {isFourth && (
                             <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-white text-2xl font-bold">
@@ -887,12 +912,13 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                       )
                         .slice(0, 3)
                         .map((rType) => {
-                          const rObj =
-                            REACTION_EMOJIS.find((r) => r.id === rType) || {
-                              id: "like",
-                              label: "Like",
-                              emoji: "👍",
-                            };
+                          const rObj = REACTION_EMOJIS.find(
+                            (r) => r.id === rType,
+                          ) || {
+                            id: "like",
+                            label: "Like",
+                            emoji: "👍",
+                          };
                           return (
                             <span
                               key={rType}
@@ -902,7 +928,8 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                             </span>
                           );
                         })}
-                      {(!post.reactionTypes || post.reactionTypes.length === 0) &&
+                      {(!post.reactionTypes ||
+                        post.reactionTypes.length === 0) &&
                         post.reactionCount > 0 && (
                           <span className="w-[18px] h-[18px] rounded-full bg-[#1877F2] text-white flex items-center justify-center text-[10px] shadow-xs">
                             👍
@@ -932,7 +959,7 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                 </div>
 
                 {/* 5. Facebook 2-Button Action Row (Like/React, Comment) */}
-                <div className="mx-4 my-1 border-y border-gray-200/80 dark:border-neutral-800 py-0.5 grid grid-cols-2 gap-1 relative">
+                <div className="mx-4 my-1 py-0.5 grid grid-cols-2 gap-1 relative">
                   {/* Floating Facebook Reaction Emoji Dock on Hover */}
                   {isReactionHovered && (
                     <div
@@ -965,7 +992,9 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                   >
                     {(() => {
                       const userReactionObj = post.hasLiked
-                        ? REACTION_EMOJIS.find((r) => r.id === post.userReaction) || {
+                        ? REACTION_EMOJIS.find(
+                            (r) => r.id === post.userReaction,
+                          ) || {
                             id: "like",
                             label: "Like",
                             emoji: "👍",
@@ -978,7 +1007,10 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                           type="button"
                           onClick={() => {
                             if (post.hasLiked) {
-                              handleToggleLike(post.id, post.userReaction || "like");
+                              handleToggleLike(
+                                post.id,
+                                post.userReaction || "like",
+                              );
                             } else {
                               handleToggleLike(post.id, "like");
                             }
@@ -1027,12 +1059,9 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                 {isCommentsOpen && (
                   <div className="px-4 pt-2 pb-3.5 space-y-3">
                     {/* Sort Filter Row */}
-                    <div className="flex items-center justify-between text-[13px] text-[#65676B] dark:text-[#B0B3B8] px-1">
+                    <div className="text-[13px] text-[#65676B] dark:text-[#B0B3B8] px-1">
                       <span className="font-semibold text-[#050505] dark:text-[#E4E6EB]">
                         Comments ({post.commentsCount})
-                      </span>
-                      <span className="flex items-center gap-1 cursor-pointer hover:underline font-medium">
-                        Most relevant ▾
                       </span>
                     </div>
 
@@ -1063,37 +1092,20 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                           }}
                           className="flex-1 bg-transparent text-[14px] text-[#050505] dark:text-[#E4E6EB] focus:outline-none placeholder:text-[#65676B] dark:placeholder:text-[#B0B3B8]"
                         />
-                        <div className="flex items-center gap-1 text-[#65676B] dark:text-[#B0B3B8]">
-                          <button
-                            type="button"
-                            onClick={() => toast.info("Emoji picker")}
-                            className="p-1 hover:text-[#050505] dark:hover:text-[#E4E6EB]"
-                            title="Insert an emoji"
-                          >
-                            <Smile className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => toast.info("Attach a photo")}
-                            className="p-1 hover:text-[#050505] dark:hover:text-[#E4E6EB]"
-                            title="Attach a photo"
-                          >
-                            <Camera className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleAddComment(
-                                post.id,
-                                activeReplyTo[post.id] || undefined,
-                              )
-                            }
-                            disabled={!commentDrafts[post.id]?.trim()}
-                            className="text-[#1877F2] hover:text-[#1877F2]/80 disabled:opacity-30 p-1"
-                          >
-                            <Send className="w-4 h-4" />
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleAddComment(
+                              post.id,
+                              activeReplyTo[post.id] || undefined,
+                            )
+                          }
+                          disabled={!commentDrafts[post.id]?.trim()}
+                          className="text-[#1877F2] hover:text-[#1877F2]/80 disabled:opacity-30 p-1"
+                          title="Send comment"
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
 
@@ -1540,112 +1552,6 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
       )}
 
       {/* ============================================================== */}
-      {/* 4. EDIT POST MODAL                                             */}
-      {/* ============================================================== */}
-      {editingPost && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#242526] border border-gray-200 dark:border-neutral-700 rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-neutral-700">
-              <h3 className="text-base font-bold flex items-center gap-2 text-[#050505] dark:text-[#E4E6EB]">
-                <Edit2 className="w-4 h-4 text-[#1877F2]" />
-                Edit Post
-              </h3>
-              <button
-                type="button"
-                onClick={() => setEditingPost(null)}
-                className="text-[#65676B] dark:text-[#B0B3B8] hover:text-[#050505]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <label className="text-xs font-semibold text-[#65676B] dark:text-[#B0B3B8]">
-                Post Content
-              </label>
-              <Textarea
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                className="min-h-[120px] text-sm"
-              />
-
-              {(editingPost.mediaItems?.length || 0) === 0 && (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[#65676B] dark:text-[#B0B3B8]">
-                    Post Theme
-                  </label>
-                  <div className="flex items-center gap-1.5 pt-0.5">
-                    {POST_BACKGROUNDS.map((bg) => (
-                      <button
-                        key={bg.id}
-                        type="button"
-                        onClick={() => setEditTheme(bg.id)}
-                        className={`w-6 h-6 rounded-md border transition-transform cursor-pointer ${
-                          bg.id === "none"
-                            ? "bg-gray-100 dark:bg-neutral-800 border-gray-300 dark:border-neutral-600"
-                            : bg.id === "ocean"
-                              ? "bg-gradient-to-tr from-blue-600 to-cyan-500 border-blue-400"
-                              : bg.id === "sunset"
-                                ? "bg-gradient-to-tr from-rose-500 to-yellow-400 border-amber-400"
-                                : bg.id === "berry"
-                                  ? "bg-gradient-to-tr from-purple-800 to-pink-600 border-purple-400"
-                                  : bg.id === "emerald"
-                                    ? "bg-gradient-to-tr from-emerald-700 to-teal-400 border-emerald-400"
-                                    : "bg-gradient-to-tr from-red-600 to-amber-500 border-red-400"
-                        } ${
-                          editTheme === bg.id
-                            ? "scale-115 ring-2 ring-[#1877F2]"
-                            : "hover:scale-105"
-                        }`}
-                        title={bg.label}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-[#65676B] dark:text-[#B0B3B8]">
-                  Audience Scope
-                </label>
-                <select
-                  value={editVisibility}
-                  onChange={(e) => setEditVisibility(e.target.value as any)}
-                  className="w-full bg-white dark:bg-[#242526] border border-gray-200 dark:border-neutral-700 rounded-xl px-3 py-2 text-sm"
-                >
-                  {isMultiCampus && (
-                    <option value="public">Public (All Campuses)</option>
-                  )}
-                  <option value="campus">Campus Community</option>
-                  <option value="private">Only Me</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-200 dark:border-neutral-700">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setEditingPost(null)}
-                disabled={savingEdit}
-                className="rounded-xl"
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSaveEdit}
-                disabled={savingEdit}
-                className="bg-[#1877F2] hover:bg-[#166FE5] text-white rounded-xl px-5"
-              >
-                {savingEdit ? "Saving..." : "Save changes"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================== */}
       {/* 5. DELETE CONFIRM MODAL                                        */}
       {/* ============================================================== */}
       {deletingPostId && (
@@ -1707,15 +1613,14 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
             <X className="w-6 h-6" />
           </button>
 
-          <a
-            href={lightboxImages[lightboxIndex]}
-            download
-            target="_blank"
-            rel="noreferrer"
-            className="absolute top-4 right-16 bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-full transition-colors z-10"
+          <button
+            type="button"
+            onClick={() => handleDownloadImage(lightboxImages[lightboxIndex])}
+            className="absolute top-4 right-16 bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-full transition-colors z-10 cursor-pointer"
+            title="Download image"
           >
             <Download className="w-6 h-6" />
-          </a>
+          </button>
 
           {lightboxImages.length > 1 && (
             <>

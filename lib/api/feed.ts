@@ -148,11 +148,23 @@ export async function createFeedPost(input: CreateFeedPostInput): Promise<FeedPo
 }
 
 /**
+ * 2b. Fetch Single Post
+ */
+export async function fetchFeedPostById(postId: string): Promise<FeedPostItem> {
+  return apiClient.get<FeedPostItem>(`/feed/${postId}`);
+}
+
+/**
  * 3. Update Post (Flow 7 & Flow 8: Own Post?)
  */
 export async function updateFeedPost(
   postId: string,
-  input: { content: string; visibility?: PostVisibility; theme?: string },
+  input: {
+    content: string;
+    visibility?: PostVisibility;
+    theme?: string;
+    removeMediaIds?: string[];
+  },
 ): Promise<FeedPostItem> {
   return apiClient.patch<FeedPostItem>(`/feed/${postId}`, input);
 }
