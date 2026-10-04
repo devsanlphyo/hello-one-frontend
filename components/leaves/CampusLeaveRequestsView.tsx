@@ -246,7 +246,7 @@ export function CampusLeaveRequestsView({ schoolId }: CampusLeaveRequestsViewPro
           <p>There are currently no leave records in this category matching your filter.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-3">
           {filteredList.map((req) => (
             <Card key={req.id} className="shadow-xs hover:border-primary/30 transition-all flex flex-col justify-between">
               <CardHeader className="pb-2.5">
