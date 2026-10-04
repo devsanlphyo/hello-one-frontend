@@ -37,9 +37,9 @@ export function StaffProfileTab() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Left: User Card */}
-        <Card className="md:col-span-1 shadow-xs">
+      <div className="space-y-4">
+        {/* User Card */}
+        <Card className="shadow-xs">
           <CardHeader className="text-center pb-2">
             <Avatar className="h-20 w-20 mx-auto border-2 border-primary/20 shadow-sm">
               <AvatarImage src={user?.avatarUrl || undefined} alt={user?.fullName} />
@@ -81,8 +81,8 @@ export function StaffProfileTab() {
           </CardContent>
         </Card>
 
-        {/* Right: Workstation & Security Info */}
-        <div className="md:col-span-2 space-y-4">
+        {/* Workstation & Security Info */}
+        <div className="space-y-4">
           <Card className="shadow-xs border-emerald-500/20 bg-emerald-500/5">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">

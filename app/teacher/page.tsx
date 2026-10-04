@@ -106,9 +106,9 @@ function TeacherContent() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-4">
             {/* Timeline View */}
-            <Card className="md:col-span-2 shadow-xs">
+            <Card className="shadow-xs">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm font-bold">
@@ -245,7 +245,7 @@ function TeacherContent() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {classes.map((c) => (
               <Card key={c.id} className="shadow-xs">
                 <CardContent className="p-4 space-y-3">
@@ -299,7 +299,7 @@ function TeacherContent() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {subjects.map((s) => (
               <Card key={s.id} className="shadow-xs">
                 <CardContent className="p-4 space-y-2">

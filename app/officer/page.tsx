@@ -86,7 +86,7 @@ function OfficerContent() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <Card className="shadow-xs border-l-4 border-l-amber-500">
               <CardContent className="p-4 space-y-1">
                 <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
@@ -228,7 +228,7 @@ function OfficerContent() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-3">
             <Card className="shadow-xs">
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs font-bold">Facility Access Keys</CardTitle>

@@ -106,7 +106,7 @@ function HeadmasterContent() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {teachers.map((t) => (
               <Card key={t.id} className="shadow-xs">
                 <CardContent className="p-4 space-y-3">
@@ -161,7 +161,7 @@ function HeadmasterContent() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {classes.map((c) => (
               <Card key={c.id} className="shadow-xs">
                 <CardContent className="p-4 space-y-3">

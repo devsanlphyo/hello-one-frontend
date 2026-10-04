@@ -113,7 +113,7 @@ function DirectorContent() {
           </div>
 
           {/* KPI Metrics */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <Card className="shadow-xs border-l-4 border-l-purple-500">
               <CardContent className="p-4 space-y-1">
                 <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
@@ -174,7 +174,7 @@ function DirectorContent() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               {schools.map((s) => (
                 <Card key={s.id} className="shadow-xs hover:border-primary/40 transition-colors">
                   <CardHeader className="p-3.5 pb-2">
@@ -225,7 +225,7 @@ function DirectorContent() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {filteredSchools.map((s) => (
               <Card key={s.id} className="shadow-xs">
                 <CardContent className="p-4 space-y-3">
@@ -277,7 +277,7 @@ function DirectorContent() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {faculty.slice(0, 30).map((f) => (
               <Card key={f.id} className="shadow-xs">
                 <CardContent className="p-3.5 flex items-center justify-between">

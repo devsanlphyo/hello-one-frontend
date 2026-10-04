@@ -37,7 +37,7 @@ export default function AdminFeedPage() {
             </Breadcrumb>
         </header>
 
-        <div className="flex-1 p-6 md:p-8 bg-muted/20">
+        <div className="flex-1 p-3 sm:p-4 md:p-6 bg-[#f0f2f5]/60 dark:bg-muted/10 min-h-[calc(100vh-3.5rem)]">
           <FeedView />
         </div>
       </SidebarInset>

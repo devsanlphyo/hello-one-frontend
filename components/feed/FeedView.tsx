@@ -2,30 +2,31 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import {
-  MessageSquare,
-  Heart,
+  ThumbsUp,
+  MessageCircle,
   Share2,
-  MoreVertical,
-  Edit2,
-  Trash2,
+  Smile,
+  Video,
   Image as ImageIcon,
-  Send,
+  MoreHorizontal,
   X,
-  Pin,
-  Megaphone,
   Globe,
   Building,
   Lock,
-  Search,
-  Filter,
-  Sparkles,
-  RefreshCw,
+  Megaphone,
+  Pin,
+  Edit2,
+  Trash2,
+  Link2,
+  Send,
   CornerDownRight,
   ChevronLeft,
   ChevronRight,
   Download,
   AlertCircle,
-  CheckCircle2,
+  Users,
+  Camera,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -43,12 +44,52 @@ import {
 } from "@/lib/api/feed";
 import { fetchSchools, School } from "@/lib/api/schools";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 
 interface FeedViewProps {
   initialFilter?: "all" | "campus" | "public" | "my" | "announcements";
 }
+
+// Facebook Reaction Emojis
+const REACTION_EMOJIS = [
+  { id: "like", label: "Like", emoji: "👍", color: "text-[#1877F2]" },
+  { id: "love", label: "Love", emoji: "❤️", color: "text-[#FA383E]" },
+  { id: "care", label: "Care", emoji: "🥰", color: "text-[#F7B125]" },
+  { id: "haha", label: "Haha", emoji: "😂", color: "text-[#F7B125]" },
+  { id: "wow", label: "Wow", emoji: "😮", color: "text-[#F7B125]" },
+  { id: "sad", label: "Sad", emoji: "😢", color: "text-[#F7B125]" },
+  { id: "angry", label: "Angry", emoji: "😡", color: "text-[#E24E33]" },
+];
+
+// Facebook Colored Post Background Presets
+const POST_BACKGROUNDS = [
+  { id: "none", label: "Default", class: "" },
+  {
+    id: "ocean",
+    label: "Ocean",
+    class: "bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 text-white font-bold text-center text-xl md:text-2xl p-8 rounded-xl flex items-center justify-center min-h-[220px]",
+  },
+  {
+    id: "sunset",
+    label: "Sunset",
+    class: "bg-gradient-to-tr from-rose-500 via-amber-500 to-yellow-400 text-white font-bold text-center text-xl md:text-2xl p-8 rounded-xl flex items-center justify-center min-h-[220px]",
+  },
+  {
+    id: "berry",
+    label: "Berry",
+    class: "bg-gradient-to-tr from-purple-800 via-pink-600 to-rose-500 text-white font-bold text-center text-xl md:text-2xl p-8 rounded-xl flex items-center justify-center min-h-[220px]",
+  },
+  {
+    id: "emerald",
+    label: "Emerald",
+    class: "bg-gradient-to-tr from-emerald-700 via-teal-600 to-cyan-500 text-white font-bold text-center text-xl md:text-2xl p-8 rounded-xl flex items-center justify-center min-h-[220px]",
+  },
+  {
+    id: "fire",
+    label: "Fire",
+    class: "bg-gradient-to-tr from-red-600 via-orange-600 to-amber-500 text-white font-bold text-center text-xl md:text-2xl p-8 rounded-xl flex items-center justify-center min-h-[220px]",
+  },
+];
 
 export function FeedView({ initialFilter = "all" }: FeedViewProps) {
   const { user } = useAuth();
@@ -56,17 +97,29 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
 
   const [posts, setPosts] = useState<FeedPostItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<
     "all" | "campus" | "public" | "my" | "announcements"
   >(initialFilter);
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
   const [schools, setSchools] = useState<School[]>([]);
 
-  // Composer State
+  // Hidden posts set (Facebook "Hide post" functionality)
+  const [hiddenPostIds, setHiddenPostIds] = useState<Set<string>>(new Set());
+
+  // Expandable post text state ("See more")
+  const [expandedTextPostIds, setExpandedTextPostIds] = useState<Set<string>>(new Set());
+
+  // Comment Likes map
+  const [likedCommentIds, setLikedCommentIds] = useState<Set<string>>(new Set());
+
+  // Hover reaction popup tracking
+  const [hoverReactionPostId, setHoverReactionPostId] = useState<string | null>(null);
+  const reactionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Facebook Create Post Modal State
   const [composerOpen, setComposerOpen] = useState(false);
   const [newContent, setNewContent] = useState("");
+  const [selectedBgStyle, setSelectedBgStyle] = useState<string>("none");
   const [newVisibility, setNewVisibility] = useState<PostVisibility>(
     isMultiCampus ? "public" : "campus",
   );
@@ -112,14 +165,11 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
     }
   }, [isMultiCampus]);
 
-  const loadFeed = async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-
+  const loadFeed = async () => {
+    setLoading(true);
     try {
       const res = await fetchFeed({
         filter: activeFilter,
-        search: searchQuery || undefined,
         schoolId: isMultiCampus ? selectedSchoolId || undefined : undefined,
       });
       setPosts(res.posts || []);
@@ -127,7 +177,6 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
       toast.error(err.message || "Failed to load feed");
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
@@ -140,7 +189,7 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
     if (!e.target.files) return;
     const files = Array.from(e.target.files);
     if (selectedFiles.length + files.length > 10) {
-      toast.error("You can attach a maximum of 10 images per post.");
+      toast.error("Maximum 10 images allowed per post.");
       return;
     }
 
@@ -152,6 +201,7 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
       url: URL.createObjectURL(file),
     }));
     setFilePreviews(previews);
+    setSelectedBgStyle("none");
   };
 
   const removeFile = (idx: number) => {
@@ -164,7 +214,7 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
     setFilePreviews(previews);
   };
 
-  // Submit new post (Flow 3 & Flow 4)
+  // Submit new post
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newContent.trim() && selectedFiles.length === 0) {
@@ -186,15 +236,16 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
       toast.success(
         isAnnouncement
           ? "Official announcement published to feed!"
-          : "Your post has been published successfully!",
+          : "Your post has been published to feed!",
       );
       setNewContent("");
       setSelectedFiles([]);
       setFilePreviews([]);
+      setSelectedBgStyle("none");
       setIsAnnouncement(false);
       setIsPinned(false);
       setComposerOpen(false);
-      loadFeed(true);
+      loadFeed();
     } catch (err: any) {
       toast.error(err.message || "Failed to publish post");
     } finally {
@@ -202,7 +253,7 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
     }
   };
 
-  // Open Edit Modal (Flow 7 & Flow 8: Own Post?)
+  // Open Edit Modal
   const handleStartEdit = (post: FeedPostItem) => {
     if (!post.canEdit) {
       toast.error("You can only edit your own posts.");
@@ -214,7 +265,7 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
     setActiveMenuPostId(null);
   };
 
-  // Save Edit (Flow 7 & Flow 8)
+  // Save Edit
   const handleSaveEdit = async () => {
     if (!editingPost) return;
     if (!editContent.trim()) {
@@ -241,7 +292,7 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
     }
   };
 
-  // Confirm Delete Post (Flow 5 & Flow 6)
+  // Confirm Delete Post
   const handleConfirmDeletePost = async () => {
     if (!deletingPostId) return;
 
@@ -249,7 +300,7 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
     try {
       await deleteFeedPost(deletingPostId);
       setPosts((prev) => prev.filter((p) => p.id !== deletingPostId));
-      toast.success("Post removed from feed");
+      toast.success("Post deleted from feed");
       setDeletingPostId(null);
     } catch (err: any) {
       toast.error(err.message || "Failed to delete post");
@@ -260,21 +311,6 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
 
   // Toggle Like Reaction
   const handleToggleLike = async (postId: string) => {
-    // Optimistic update
-    setPosts((prev) =>
-      prev.map((p) => {
-        if (p.id === postId) {
-          const nextLiked = !p.hasLiked;
-          return {
-            ...p,
-            hasLiked: nextLiked,
-            reactionCount: nextLiked ? p.reactionCount + 1 : Math.max(0, p.reactionCount - 1),
-          };
-        }
-        return p;
-      }),
-    );
-
     try {
       const res = await toggleFeedReaction(postId);
       setPosts((prev) =>
@@ -284,13 +320,12 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
             : p,
         ),
       );
-    } catch {
-      // Revert if error
-      loadFeed(true);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update reaction");
     }
   };
 
-  // Submit Comment
+  // Add Comment or Reply
   const handleAddComment = async (postId: string, parentId?: string) => {
     const text = commentDrafts[postId]?.trim();
     if (!text) return;
@@ -305,7 +340,6 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
         prev.map((p) => {
           if (p.id === postId) {
             if (parentId) {
-              // Add to replies of parent comment
               const updatedComments = p.comments.map((c) => {
                 if (c.id === parentId) {
                   return {
@@ -371,6 +405,16 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
     }
   };
 
+  // Toggle Comment Like
+  const handleToggleCommentLike = (commentId: string) => {
+    setLikedCommentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(commentId)) next.delete(commentId);
+      else next.add(commentId);
+      return next;
+    });
+  };
+
   // Lightbox handlers
   const openLightbox = (mediaUrls: string[], startIndex: number) => {
     setLightboxImages(mediaUrls);
@@ -383,7 +427,9 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
   };
 
   const prevLightboxImage = () => {
-    setLightboxIndex((prev) => (prev - 1 + lightboxImages.length) % lightboxImages.length);
+    setLightboxIndex(
+      (prev) => (prev - 1 + lightboxImages.length) % lightboxImages.length,
+    );
   };
 
   const formatTimeAgo = (dateStr: string) => {
@@ -391,401 +437,198 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
     const diffSec = Math.floor(diffMs / 1000);
     if (diffSec < 60) return "Just now";
     const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffMin < 60) return `${diffMin}m`;
     const diffHours = Math.floor(diffMin / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffHours < 24) return `${diffHours}h`;
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffDays < 7) return `${diffDays}d`;
     return new Date(dateStr).toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
     });
   };
 
-  const getRoleBadgeVariant = (role: string) => {
-    switch (role) {
-      case "director":
-        return "bg-purple-500/10 text-purple-600 border-purple-200 dark:border-purple-800";
-      case "admin":
-        return "bg-rose-500/10 text-rose-600 border-rose-200 dark:border-rose-800";
-      case "headmaster":
-        return "bg-amber-500/10 text-amber-600 border-amber-200 dark:border-amber-800";
-      case "teacher":
-        return "bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:border-emerald-800";
-      case "officer":
-        return "bg-blue-500/10 text-blue-600 border-blue-200 dark:border-blue-800";
-      default:
-        return "bg-slate-500/10 text-slate-600 border-slate-200 dark:border-slate-800";
-    }
+  // Reaction hover dock management
+  const handleReactionMouseEnter = (postId: string) => {
+    if (reactionTimeoutRef.current) clearTimeout(reactionTimeoutRef.current);
+    setHoverReactionPostId(postId);
   };
 
+  const handleReactionMouseLeave = () => {
+    reactionTimeoutRef.current = setTimeout(() => {
+      setHoverReactionPostId(null);
+    }, 300);
+  };
+
+  // Helper to highlight #hashtags and @mentions
+  const renderFormattedText = (text: string) => {
+    const words = text.split(/(\s+)/);
+    return words.map((word, i) => {
+      if ((word.startsWith("#") || word.startsWith("@")) && word.length > 1) {
+        return (
+          <span
+            key={i}
+            className="text-[#1877F2] font-medium hover:underline cursor-pointer"
+          >
+            {word}
+          </span>
+        );
+      }
+      return word;
+    });
+  };
+
+  const visiblePosts = posts.filter((p) => !hiddenPostIds.has(p.id));
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-16">
-      {/* 1. Header Banner & Flow Architecture Overview */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-900 via-slate-900 to-slate-950 p-6 md:p-8 text-white shadow-xl border border-indigo-500/20">
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-                <Sparkles className="w-3.5 h-3.5" />
-                Process Flow Architecture
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                {isMultiCampus ? "Flow 2: Multi-Campus Oversight" : "Flow 1: Campus Scoped"}
-              </span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-              School Community Feed
-            </h1>
-            <p className="text-sm md:text-base text-slate-300 max-w-2xl mt-1">
-              {isMultiCampus
-                ? "Global feed across all campuses with institutional announcement privileges and administrative moderation controls."
-                : "Campus-level updates, announcements, and peer collaboration for your designated school."}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => loadFeed(true)}
-              disabled={refreshing}
-              className="bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-md"
-            >
-              <RefreshCw className={`w-4 h-4 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => setComposerOpen(true)}
-              className="bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white shadow-lg shadow-indigo-500/25"
-            >
-              <Edit2 className="w-4 h-4 mr-1.5" />
-              Create Post
-            </Button>
-          </div>
-        </div>
-
-        {/* Ambient glow */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
-      </div>
-
-      {/* 2. Filter Tabs & Search Bar */}
-      <div className="bg-card border border-border/60 rounded-xl p-4 shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-          {/* Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-            {[
-              { id: "all", label: "All Posts", icon: Globe },
-              { id: "campus", label: "Campus Community", icon: Building },
-              { id: "announcements", label: "Announcements", icon: Megaphone },
-              { id: "my", label: "My Posts", icon: MessageSquare },
-            ].map((tab) => {
-              const Icon = tab.icon;
-              const active = activeFilter === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveFilter(tab.id as any)}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                    active
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Director & Admin Campus Switcher */}
-          {isMultiCampus && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1 whitespace-nowrap">
-                <Filter className="w-3 h-3" /> Campus:
-              </span>
-              <select
-                value={selectedSchoolId}
-                onChange={(e) => setSelectedSchoolId(e.target.value)}
-                className="text-xs bg-muted/60 border border-border rounded-lg px-2.5 py-1.5 font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="">All Campuses</option>
-                {schools.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-
-        {/* Live Search Input */}
-        <div className="relative">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search feed by keyword or faculty name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && loadFeed()}
-            className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-        </div>
-      </div>
-
-      {/* 3. Post Composer (Flow 3 & Flow 4) */}
-      <div className="bg-card border border-border/80 rounded-2xl p-5 shadow-sm space-y-4">
+    <div className="w-full max-w-[590px] md:max-w-[620px] mx-auto space-y-4 pb-20 select-text">
+      {/* ============================================================== */}
+      {/* 1. FACEBOOK POST COMPOSER CARD                                 */}
+      {/* ============================================================== */}
+      <div className="bg-white dark:bg-[#242526] rounded-xl border border-gray-200/80 dark:border-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.1)] p-3 sm:p-4 space-y-3">
+        {/* Top Row: User Avatar + Pill Input Box */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white font-bold flex items-center justify-center text-sm shadow-md">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-sm overflow-hidden shrink-0 cursor-pointer">
             {user?.fullName?.charAt(0) || "U"}
           </div>
-          <div
+          <button
+            type="button"
             onClick={() => setComposerOpen(true)}
-            className="flex-1 bg-muted/40 hover:bg-muted/70 border border-border/60 rounded-full px-4 py-2.5 text-sm text-muted-foreground cursor-pointer transition-colors"
+            className="flex-1 text-left bg-[#F0F2F5] dark:bg-[#3A3B3C] hover:bg-[#E4E6E9] dark:hover:bg-[#4E4F50] rounded-full px-4 py-2.5 text-[15px] text-[#65676B] dark:text-[#B0B3B8] transition-colors cursor-pointer truncate"
           >
-            {isMultiCampus
-              ? "Publish an announcement, milestone, or multi-campus bulletin..."
-              : "Share a lesson insight, campus update, or classroom project..."}
-          </div>
+            What's on your mind, {user?.fullName?.split(" ")[0] || "Faculty"}?
+          </button>
         </div>
 
-        {composerOpen && (
-          <form onSubmit={handleCreatePost} className="pt-3 border-t border-border/60 space-y-4">
-            <Textarea
-              placeholder="What would you like to share with the faculty community?"
-              value={newContent}
-              onChange={(e) => setNewContent(e.target.value)}
-              className="min-h-[120px] resize-y text-base border-border focus-visible:ring-1 focus-visible:ring-primary"
-              autoFocus
-            />
+        <div className="border-t border-gray-200/80 dark:border-neutral-800" />
 
-            {/* Media previews */}
-            {filePreviews.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-                {filePreviews.map((f, i) => (
-                  <div
-                    key={i}
-                    className="relative group aspect-video rounded-lg overflow-hidden border border-border bg-black/5"
-                  >
-                    <img src={f.url} alt={f.name} className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removeFile(i)}
-                      className="absolute top-1 right-1 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-full opacity-90 group-hover:opacity-100 transition-all"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* Bottom Row: 3 Facebook Action Buttons */}
+        <div className="grid grid-cols-3 gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              setIsAnnouncement(true);
+              setComposerOpen(true);
+            }}
+            className="flex items-center justify-center gap-2 py-2 px-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3A3B3C] text-[14px] font-semibold text-[#65676B] dark:text-[#B0B3B8] transition-colors"
+          >
+            <Video className="w-5 h-5 text-[#F3425F]" />
+            <span className="hidden sm:inline">Live video</span>
+            <span className="sm:hidden">Live</span>
+          </button>
 
-            {/* Composer Options */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Photo Upload Trigger */}
-                <input
-                  type="file"
-                  multiple
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-xs h-8 border-border"
-                >
-                  <ImageIcon className="w-3.5 h-3.5 mr-1.5 text-indigo-500" />
-                  Add Images ({selectedFiles.length}/10)
-                </Button>
+          <button
+            type="button"
+            onClick={() => {
+              setComposerOpen(true);
+              setTimeout(() => fileInputRef.current?.click(), 100);
+            }}
+            className="flex items-center justify-center gap-2 py-2 px-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3A3B3C] text-[14px] font-semibold text-[#65676B] dark:text-[#B0B3B8] transition-colors"
+          >
+            <ImageIcon className="w-5 h-5 text-[#45BD62]" />
+            <span>Photo/video</span>
+          </button>
 
-                {/* Visibility Scoping */}
-                <div className="flex items-center gap-1 bg-muted/60 px-2 py-1 rounded-md text-xs font-medium border border-border">
-                  {newVisibility === "public" ? (
-                    <Globe className="w-3.5 h-3.5 text-emerald-500" />
-                  ) : newVisibility === "campus" ? (
-                    <Building className="w-3.5 h-3.5 text-indigo-500" />
-                  ) : (
-                    <Lock className="w-3.5 h-3.5 text-amber-500" />
-                  )}
-                  <select
-                    value={newVisibility}
-                    onChange={(e) => setNewVisibility(e.target.value as any)}
-                    className="bg-transparent text-xs font-semibold focus:outline-none"
-                  >
-                    {isMultiCampus && (
-                      <option value="public">All Campuses (Public)</option>
-                    )}
-                    <option value="campus">Campus Community</option>
-                    <option value="private">Private (Author Only)</option>
-                  </select>
-                </div>
-
-                {/* Director / Admin target campus */}
-                {isMultiCampus && newVisibility === "campus" && (
-                  <select
-                    value={newSchoolId}
-                    onChange={(e) => setNewSchoolId(e.target.value)}
-                    className="text-xs bg-muted/60 border border-border rounded-md px-2 py-1 font-medium"
-                  >
-                    <option value="">Default School</option>
-                    {schools.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              {/* Administrative options */}
-              {isMultiCampus && (
-                <div className="flex items-center gap-4 text-xs font-medium">
-                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={isAnnouncement}
-                      onChange={(e) => setIsAnnouncement(e.target.checked)}
-                      className="rounded border-border text-primary focus:ring-primary"
-                    />
-                    <span className="text-muted-foreground flex items-center gap-1">
-                      <Megaphone className="w-3 h-3 text-rose-500" />
-                      Official Notice
-                    </span>
-                  </label>
-
-                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={isPinned}
-                      onChange={(e) => setIsPinned(e.target.checked)}
-                      className="rounded border-border text-primary focus:ring-primary"
-                    />
-                    <span className="text-muted-foreground flex items-center gap-1">
-                      <Pin className="w-3 h-3 text-amber-500" />
-                      Pin to Top
-                    </span>
-                  </label>
-                </div>
-              )}
-            </div>
-
-            {/* Composer Footer Actions */}
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setComposerOpen(false);
-                  setNewContent("");
-                  setSelectedFiles([]);
-                  setFilePreviews([]);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={submitting}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-5"
-              >
-                {submitting ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" />
-                    Publishing...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-3.5 h-3.5 mr-1.5" />
-                    Publish
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        )}
+          <button
+            type="button"
+            onClick={() => setComposerOpen(true)}
+            className="flex items-center justify-center gap-2 py-2 px-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3A3B3C] text-[14px] font-semibold text-[#65676B] dark:text-[#B0B3B8] transition-colors"
+          >
+            <Smile className="w-5 h-5 text-[#F7B125]" />
+            <span className="hidden sm:inline">Feeling/activity</span>
+            <span className="sm:hidden">Feeling</span>
+          </button>
+        </div>
       </div>
 
-      {/* 4. Feed Stream */}
+      {/* ============================================================== */}
+      {/* 2. FACEBOOK POST FEED STREAM                                   */}
+      {/* ============================================================== */}
       {loading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-card border border-border/60 rounded-2xl p-6 animate-pulse space-y-4">
+            <div
+              key={i}
+              className="bg-white dark:bg-[#242526] border border-gray-200/80 dark:border-neutral-800 rounded-xl p-4 animate-pulse space-y-3"
+            >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-muted" />
-                <div className="space-y-2 flex-1">
-                  <div className="h-4 bg-muted rounded w-1/3" />
-                  <div className="h-3 bg-muted rounded w-1/4" />
+                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-neutral-700" />
+                <div className="space-y-1.5 flex-1">
+                  <div className="h-4 bg-gray-200 dark:bg-neutral-700 rounded w-1/3" />
+                  <div className="h-3 bg-gray-100 dark:bg-neutral-800 rounded w-1/5" />
                 </div>
               </div>
-              <div className="h-16 bg-muted/60 rounded-lg" />
+              <div className="h-16 bg-gray-100 dark:bg-neutral-800 rounded-lg" />
             </div>
           ))}
         </div>
-      ) : posts.length === 0 ? (
-        <div className="text-center py-16 px-4 bg-card border border-dashed border-border rounded-2xl space-y-3">
-          <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center mx-auto text-muted-foreground">
-            <MessageSquare className="w-7 h-7" />
+      ) : visiblePosts.length === 0 ? (
+        <div className="bg-white dark:bg-[#242526] border border-dashed border-gray-300 dark:border-neutral-700 rounded-xl p-12 text-center space-y-3">
+          <div className="w-12 h-12 rounded-full bg-[#F0F2F5] dark:bg-[#3A3B3C] flex items-center justify-center mx-auto text-[#65676B] dark:text-[#B0B3B8]">
+            <MessageCircle className="w-6 h-6" />
           </div>
-          <h3 className="text-lg font-bold text-foreground">No posts found in feed</h3>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            {searchQuery
-              ? `No feed posts matched "${searchQuery}". Try clearing search or filters.`
-              : "Be the first to share an update, curriculum breakthrough, or announcement!"}
+          <h3 className="text-base font-bold text-[#050505] dark:text-[#E4E6EB]">
+            No posts in feed
+          </h3>
+          <p className="text-xs text-[#65676B] dark:text-[#B0B3B8] max-w-sm mx-auto">
+            Be the first to share an update, milestone, or classroom insight!
           </p>
           <Button
             variant="outline"
             size="sm"
             onClick={() => {
               setActiveFilter("all");
-              setSearchQuery("");
               loadFeed();
             }}
+            className="rounded-lg text-xs"
           >
-            Clear Filters
+            Reset Filters
           </Button>
         </div>
       ) : (
-        <div className="space-y-5">
-          {posts.map((post) => {
+        <div className="space-y-4">
+          {visiblePosts.map((post) => {
             const isCommentsOpen = !!expandedComments[post.id];
             const mediaCount = post.mediaItems?.length || 0;
             const allMediaUrls = post.mediaItems?.map((m) => m.fileUrl) || [];
+            const isReactionHovered = hoverReactionPostId === post.id;
+            const isLongText = post.content.length > 250;
+            const isTextExpanded = expandedTextPostIds.has(post.id);
+            const isShortStatus = post.content.length < 85 && mediaCount === 0;
 
             return (
               <article
                 key={post.id}
-                className="bg-card border border-border/70 hover:border-border rounded-2xl p-5 md:p-6 shadow-sm hover:shadow-md transition-all space-y-4 relative"
+                className="bg-white dark:bg-[#242526] rounded-xl border border-gray-200/80 dark:border-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.1)] relative overflow-hidden transition-shadow"
               >
                 {/* Pinned or Announcement Header Banner */}
                 {(post.isPinned || post.isAnnouncement) && (
-                  <div className="flex items-center gap-2 text-xs font-semibold pb-2 border-b border-border/50 text-muted-foreground">
-                    {post.isPinned && (
-                      <span className="flex items-center gap-1 text-amber-500 font-bold bg-amber-500/10 px-2 py-0.5 rounded">
-                        <Pin className="w-3 h-3" /> Pinned Post
-                      </span>
-                    )}
-                    {post.isAnnouncement && (
-                      <span className="flex items-center gap-1 text-rose-500 font-bold bg-rose-500/10 px-2 py-0.5 rounded">
-                        <Megaphone className="w-3 h-3" /> Official Notice
+                  <div className="px-4 py-2 bg-gray-50/70 dark:bg-neutral-800/40 border-b border-gray-100 dark:border-neutral-800 flex items-center justify-between text-[12px] text-[#65676B] dark:text-[#B0B3B8]">
+                    <div className="flex items-center gap-2">
+                      {post.isPinned && (
+                        <span className="flex items-center gap-1.5 font-semibold text-amber-500">
+                          <Pin className="w-3.5 h-3.5 fill-amber-500" /> Pinned Post
+                        </span>
+                      )}
+                      {post.isAnnouncement && (
+                        <span className="flex items-center gap-1.5 font-semibold text-rose-500">
+                          <Megaphone className="w-3.5 h-3.5 fill-rose-500" /> Official Announcement
+                        </span>
+                      )}
+                    </div>
+                    {post.school && (
+                      <span className="text-[11px] font-medium text-[#65676B] dark:text-[#B0B3B8]">
+                        {post.school.name}
                       </span>
                     )}
                   </div>
                 )}
 
-                {/* Post Author Row */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-700 to-indigo-800 text-white font-bold flex items-center justify-center text-sm shadow-sm overflow-hidden">
+                {/* 1. Facebook Header: Author Avatar, Name, Timestamp, Privacy Icon, Options */}
+                <div className="p-3 sm:p-4 pb-2 flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    {/* Author Avatar */}
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-700 to-indigo-800 text-white font-bold flex items-center justify-center text-sm shadow-xs overflow-hidden shrink-0 cursor-pointer">
                       {post.author.avatarUrl ? (
                         <img
                           src={post.author.avatarUrl}
@@ -797,65 +640,93 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                       )}
                     </div>
 
+                    {/* Name & Subtitle */}
                     <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-sm md:text-base font-bold text-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="text-[15px] font-semibold text-[#050505] dark:text-[#E4E6EB] hover:underline cursor-pointer leading-tight">
                           {post.author.fullName}
                         </h4>
-                        <span
-                          className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border uppercase tracking-wide ${getRoleBadgeVariant(
-                            post.author.role,
-                          )}`}
-                        >
-                          {post.author.role}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                        <span>{formatTimeAgo(post.createdAt)}</span>
-                        <span>•</span>
-                        {post.school ? (
-                          <span className="flex items-center gap-1 text-foreground/80 font-medium">
-                            <Building className="w-3 h-3 text-indigo-500" />
-                            {post.school.name}
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-                            <Globe className="w-3 h-3" />
-                            Institutional BroadCast
+                        {post.author.role === "admin" && (
+                          <span className="text-[10px] bg-rose-500/10 text-rose-600 font-semibold px-1.5 py-0.2 rounded border border-rose-200">
+                            Admin
                           </span>
                         )}
-                        <span>•</span>
-                        <span className="capitalize">{post.visibility}</span>
+                        {post.author.role === "director" && (
+                          <span className="text-[10px] bg-purple-500/10 text-purple-600 font-semibold px-1.5 py-0.2 rounded border border-purple-200">
+                            Director
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Timestamp & Privacy icon */}
+                      <div className="flex items-center gap-1 text-[13px] text-[#65676B] dark:text-[#B0B3B8] mt-0.5">
+                        <span>{formatTimeAgo(post.createdAt)}</span>
+                        <span>·</span>
+                        {post.visibility === "public" ? (
+                          <span className="flex items-center gap-0.5" title="Public">
+                            <Globe className="w-3.5 h-3.5" />
+                          </span>
+                        ) : post.visibility === "campus" ? (
+                          <span
+                            className="flex items-center gap-1"
+                            title={post.school?.name || "Campus Community"}
+                          >
+                            <Building className="w-3.5 h-3.5 text-[#1877F2]" />
+                            <span className="text-[12px] truncate max-w-[140px]">
+                              {post.school?.name || "Campus"}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-0.5" title="Only me">
+                            <Lock className="w-3.5 h-3.5" />
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Options Menu (Flow 5/6 Deletion & Flow 7/8 Editing) */}
-                  {(post.canEdit || post.canDelete) && (
+                  {/* Top-Right Menu & Facebook Close (X) */}
+                  <div className="flex items-center gap-0.5">
+                    {/* Three-dots menu */}
                     <div className="relative">
                       <button
                         type="button"
                         onClick={() =>
-                          setActiveMenuPostId(activeMenuPostId === post.id ? null : post.id)
+                          setActiveMenuPostId(
+                            activeMenuPostId === post.id ? null : post.id,
+                          )
                         }
-                        className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                        className="w-9 h-9 rounded-full hover:bg-gray-100 dark:hover:bg-[#3A3B3C] flex items-center justify-center text-[#65676B] dark:text-[#B0B3B8] transition-colors"
                       >
-                        <MoreVertical className="w-4 h-4" />
+                        <MoreHorizontal className="w-5 h-5" />
                       </button>
 
                       {activeMenuPostId === post.id && (
-                        <div className="absolute right-0 mt-1 w-44 bg-popover border border-border rounded-xl shadow-lg py-1 z-20 text-xs font-medium">
+                        <div className="absolute right-0 mt-1 w-52 bg-white dark:bg-[#242526] border border-gray-200 dark:border-neutral-700 rounded-xl shadow-xl py-1.5 z-20 text-[13px] font-medium">
                           {post.canEdit && (
                             <button
                               type="button"
                               onClick={() => handleStartEdit(post)}
-                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-left text-foreground transition-colors"
+                              className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-gray-100 dark:hover:bg-[#3A3B3C] text-left text-[#050505] dark:text-[#E4E6EB] transition-colors"
                             >
-                              <Edit2 className="w-3.5 h-3.5 text-indigo-500" />
-                              Edit Post
+                              <Edit2 className="w-4 h-4 text-[#1877F2]" />
+                              Edit post
                             </button>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(
+                                `${window.location.origin}/admin/feed#post-${post.id}`,
+                              );
+                              toast.success("Post link copied to clipboard!");
+                              setActiveMenuPostId(null);
+                            }}
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-gray-100 dark:hover:bg-[#3A3B3C] text-left text-[#050505] dark:text-[#E4E6EB] transition-colors"
+                          >
+                            <Link2 className="w-4 h-4 text-emerald-500" />
+                            Copy post link
+                          </button>
                           {post.canDelete && (
                             <button
                               type="button"
@@ -863,36 +734,72 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                                 setDeletingPostId(post.id);
                                 setActiveMenuPostId(null);
                               }}
-                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-rose-500/10 text-left text-rose-600 transition-colors"
+                              className="w-full flex items-center gap-2.5 px-3.5 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-left text-rose-600 transition-colors"
                             >
-                              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                              <Trash2 className="w-4 h-4 text-rose-500" />
                               {isMultiCampus && post.author.id !== user?.id
                                 ? "Delete (Moderation)"
-                                : "Delete Post"}
+                                : "Delete post"}
                             </button>
                           )}
                         </div>
                       )}
                     </div>
-                  )}
+
+                    {/* Facebook Close / Hide Post (X) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHiddenPostIds((prev) => new Set(prev).add(post.id));
+                        toast.info("Post hidden from your feed");
+                      }}
+                      title="Hide post"
+                      className="w-9 h-9 rounded-full hover:bg-gray-100 dark:hover:bg-[#3A3B3C] flex items-center justify-center text-[#65676B] dark:text-[#B0B3B8] transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
-                {/* Post Content */}
-                <div className="text-sm md:text-[15px] leading-relaxed text-foreground whitespace-pre-line break-words">
-                  {post.content}
+                {/* 2. Post Content Text (with Short-Text Enlargement and See More toggle) */}
+                <div className="px-4 pt-1 pb-2">
+                  <div
+                    className={
+                      isShortStatus
+                        ? "text-[20px] font-normal leading-snug text-[#050505] dark:text-[#E4E6EB]"
+                        : "text-[15px] leading-relaxed text-[#050505] dark:text-[#E4E6EB]"
+                    }
+                  >
+                    {isLongText && !isTextExpanded ? (
+                      <>
+                        {renderFormattedText(post.content.slice(0, 240))}...{" "}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedTextPostIds((prev) => new Set(prev).add(post.id))
+                          }
+                          className="font-semibold text-[#050505] dark:text-[#E4E6EB] hover:underline"
+                        >
+                          See more
+                        </button>
+                      </>
+                    ) : (
+                      renderFormattedText(post.content)
+                    )}
+                  </div>
                 </div>
 
-                {/* Media Grid */}
+                {/* 3. Facebook Multi-Image Collage */}
                 {mediaCount > 0 && (
                   <div
-                    className={`grid gap-2 rounded-xl overflow-hidden ${
+                    className={`grid gap-0.5 bg-gray-100 dark:bg-neutral-800 mt-2 overflow-hidden ${
                       mediaCount === 1
-                        ? "grid-cols-1"
+                        ? "grid-cols-1 max-h-[500px]"
                         : mediaCount === 2
-                        ? "grid-cols-2"
+                        ? "grid-cols-2 max-h-[400px]"
                         : mediaCount === 3
-                        ? "grid-cols-3"
-                        : "grid-cols-2"
+                        ? "grid-cols-3 max-h-[350px]"
+                        : "grid-cols-2 max-h-[400px]"
                     }`}
                   >
                     {post.mediaItems.slice(0, 4).map((m, idx) => {
@@ -901,18 +808,18 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                         <div
                           key={m.id}
                           onClick={() => openLightbox(allMediaUrls, idx)}
-                          className={`relative group aspect-video md:aspect-[4/3] bg-muted/40 cursor-pointer overflow-hidden ${
-                            mediaCount === 1 ? "max-h-96" : ""
+                          className={`relative group bg-gray-200 dark:bg-neutral-700 cursor-pointer overflow-hidden aspect-square ${
+                            mediaCount === 1 ? "aspect-auto max-h-[500px]" : ""
                           }`}
                         >
                           <img
                             src={m.fileUrl}
                             alt={m.fileName}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-cover group-hover:scale-101 transition-transform duration-300"
                           />
                           {isFourth && (
-                            <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-white text-xl font-bold">
-                              +{mediaCount - 4} more
+                            <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-white text-2xl font-bold">
+                              +{mediaCount - 4}
                             </div>
                           )}
                         </div>
@@ -921,28 +828,27 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                   </div>
                 )}
 
-                {/* Action Bar (Likes, Comments, Share) */}
-                <div className="flex items-center justify-between pt-3 border-t border-border/50 text-sm">
-                  <div className="flex items-center gap-4">
-                    {/* Like button */}
-                    <button
-                      type="button"
-                      onClick={() => handleToggleLike(post.id)}
-                      className={`flex items-center gap-1.5 font-semibold transition-transform active:scale-95 ${
-                        post.hasLiked
-                          ? "text-rose-500"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      <Heart
-                        className={`w-4 h-4 ${
-                          post.hasLiked ? "fill-rose-500 text-rose-500 animate-in zoom-in-50" : ""
-                        }`}
-                      />
-                      <span>{post.reactionCount}</span>
-                    </button>
+                {/* 4. Facebook Engagement Counts Row (Above Action Buttons) */}
+                <div className="px-4 py-2.5 flex items-center justify-between text-[13px] text-[#65676B] dark:text-[#B0B3B8]">
+                  {/* Left: Overlapping Reaction Badges + Total Reaction Count */}
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex -space-x-1 items-center">
+                      <span className="w-[18px] h-[18px] rounded-full bg-[#1877F2] text-white flex items-center justify-center text-[10px] shadow-xs">
+                        👍
+                      </span>
+                      {post.reactionCount > 1 && (
+                        <span className="w-[18px] h-[18px] rounded-full bg-[#FA383E] text-white flex items-center justify-center text-[10px] shadow-xs">
+                          ❤️
+                        </span>
+                      )}
+                    </div>
+                    <span className="hover:underline cursor-pointer font-normal text-[#65676B] dark:text-[#B0B3B8]">
+                      {post.reactionCount > 0 ? post.reactionCount : 0}
+                    </span>
+                  </div>
 
-                    {/* Comments Toggle */}
+                  {/* Right: Comments Count & Shares Count */}
+                  <div className="flex items-center gap-3">
                     <button
                       type="button"
                       onClick={() =>
@@ -951,38 +857,128 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                           [post.id]: !prev[post.id],
                         }))
                       }
-                      className="flex items-center gap-1.5 font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                      className="hover:underline"
                     >
-                      <MessageSquare className="w-4 h-4" />
-                      <span>{post.commentsCount} Comments</span>
+                      {post.commentsCount} comments
+                    </button>
+                    <span>·</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          `${window.location.origin}/admin/feed#post-${post.id}`,
+                        );
+                        toast.success("Link copied!");
+                      }}
+                      className="hover:underline"
+                    >
+                      Share
+                    </button>
+                  </div>
+                </div>
+
+                {/* 5. Facebook 3-Button Action Row (Like, Comment, Share) */}
+                <div className="mx-4 my-1 border-y border-gray-200/80 dark:border-neutral-800 py-0.5 grid grid-cols-3 gap-1 relative">
+                  {/* Floating Facebook Reaction Emoji Dock on Hover */}
+                  {isReactionHovered && (
+                    <div
+                      onMouseEnter={() => handleReactionMouseEnter(post.id)}
+                      onMouseLeave={handleReactionMouseLeave}
+                      className="absolute -top-12 left-2 z-30 bg-white dark:bg-[#242526] border border-gray-200 dark:border-neutral-700 shadow-2xl rounded-full px-3 py-1.5 flex items-center gap-2 animate-in zoom-in-90 slide-in-from-bottom-2 duration-150"
+                    >
+                      {REACTION_EMOJIS.map((r) => (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => {
+                            handleToggleLike(post.id);
+                            setHoverReactionPostId(null);
+                          }}
+                          className="text-2xl hover:scale-135 transition-transform duration-150 transform origin-bottom px-1"
+                          title={r.label}
+                        >
+                          {r.emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Like Button */}
+                  <div
+                    className="relative"
+                    onMouseEnter={() => handleReactionMouseEnter(post.id)}
+                    onMouseLeave={handleReactionMouseLeave}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleToggleLike(post.id)}
+                      className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3A3B3C] text-[14px] font-semibold transition-colors ${
+                        post.hasLiked
+                          ? "text-[#1877F2]"
+                          : "text-[#65676B] dark:text-[#B0B3B8]"
+                      }`}
+                    >
+                      <ThumbsUp
+                        className={`w-4 h-4 ${
+                          post.hasLiked
+                            ? "fill-[#1877F2] text-[#1877F2] scale-110"
+                            : ""
+                        }`}
+                      />
+                      <span>Like</span>
                     </button>
                   </div>
 
-                  {/* Share button */}
+                  {/* Comment Button */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedComments((prev) => ({
+                        ...prev,
+                        [post.id]: !prev[post.id],
+                      }))
+                    }
+                    className="flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3A3B3C] text-[14px] font-semibold text-[#65676B] dark:text-[#B0B3B8] transition-colors"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Comment</span>
+                  </button>
+
+                  {/* Share Button */}
                   <button
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        `${window.location.origin}/feed#post-${post.id}`,
+                        `${window.location.origin}/admin/feed#post-${post.id}`,
                       );
                       toast.success("Post link copied to clipboard!");
                     }}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    className="flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#3A3B3C] text-[14px] font-semibold text-[#65676B] dark:text-[#B0B3B8] transition-colors"
                   >
-                    <Share2 className="w-3.5 h-3.5" />
-                    Share
+                    <Share2 className="w-4 h-4" />
+                    <span>Share</span>
                   </button>
                 </div>
 
-                {/* Comments Section */}
+                {/* 6. Facebook Comment Section */}
                 {isCommentsOpen && (
-                  <div className="pt-4 border-t border-border/40 space-y-4">
-                    {/* Add Top-Level Comment Input */}
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 font-bold flex items-center justify-center text-xs flex-shrink-0">
+                  <div className="px-4 pt-2 pb-3.5 space-y-3">
+                    {/* Sort Filter Row */}
+                    <div className="flex items-center justify-between text-[13px] text-[#65676B] dark:text-[#B0B3B8] px-1">
+                      <span className="font-semibold text-[#050505] dark:text-[#E4E6EB]">
+                        Comments ({post.commentsCount})
+                      </span>
+                      <span className="flex items-center gap-1 cursor-pointer hover:underline font-medium">
+                        Most relevant ▾
+                      </span>
+                    </div>
+
+                    {/* Sticky Comment Capsule Input Box */}
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">
                         {user?.fullName?.charAt(0) || "U"}
                       </div>
-                      <div className="flex-1 flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1.5 border border-border">
+                      <div className="flex-1 flex items-center gap-2 bg-[#F0F2F5] dark:bg-[#3A3B3C] rounded-[20px] px-3.5 py-2 border border-transparent focus-within:border-gray-300 dark:focus-within:border-neutral-600 transition-colors">
                         <input
                           type="text"
                           placeholder="Write a comment..."
@@ -996,27 +992,51 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               e.preventDefault();
-                              handleAddComment(post.id, activeReplyTo[post.id] || undefined);
+                              handleAddComment(
+                                post.id,
+                                activeReplyTo[post.id] || undefined,
+                              );
                             }
                           }}
-                          className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground"
+                          className="flex-1 bg-transparent text-[14px] text-[#050505] dark:text-[#E4E6EB] focus:outline-none placeholder:text-[#65676B] dark:placeholder:text-[#B0B3B8]"
                         />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleAddComment(post.id, activeReplyTo[post.id] || undefined)
-                          }
-                          disabled={!commentDrafts[post.id]?.trim()}
-                          className="text-primary hover:text-primary/80 disabled:opacity-40 p-1"
-                        >
-                          <Send className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1 text-[#65676B] dark:text-[#B0B3B8]">
+                          <button
+                            type="button"
+                            onClick={() => toast.info("Emoji picker")}
+                            className="p-1 hover:text-[#050505] dark:hover:text-[#E4E6EB]"
+                            title="Insert an emoji"
+                          >
+                            <Smile className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toast.info("Attach a photo")}
+                            className="p-1 hover:text-[#050505] dark:hover:text-[#E4E6EB]"
+                            title="Attach a photo"
+                          >
+                            <Camera className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleAddComment(
+                                post.id,
+                                activeReplyTo[post.id] || undefined,
+                              )
+                            }
+                            disabled={!commentDrafts[post.id]?.trim()}
+                            className="text-[#1877F2] hover:text-[#1877F2]/80 disabled:opacity-30 p-1"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
 
                     {/* Active Reply Banner */}
                     {activeReplyTo[post.id] && (
-                      <div className="flex items-center justify-between text-xs text-indigo-500 bg-indigo-500/10 px-3 py-1 rounded-md">
+                      <div className="flex items-center justify-between text-xs text-[#1877F2] bg-[#1877F2]/10 px-3 py-1 rounded-lg">
                         <span className="flex items-center gap-1">
                           <CornerDownRight className="w-3.5 h-3.5" />
                           Replying to comment
@@ -1024,114 +1044,157 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                         <button
                           type="button"
                           onClick={() =>
-                            setActiveReplyTo((prev) => ({ ...prev, [post.id]: null }))
+                            setActiveReplyTo((prev) => ({
+                              ...prev,
+                              [post.id]: null,
+                            }))
                           }
-                          className="hover:underline"
+                          className="hover:underline font-semibold"
                         >
                           Cancel
                         </button>
                       </div>
                     )}
 
-                    {/* Comments List */}
+                    {/* Comments List (Facebook Rounded Bubbles) */}
                     {post.comments?.length > 0 ? (
-                      <div className="space-y-3 pt-2">
-                        {post.comments.map((comment) => (
-                          <div key={comment.id} className="space-y-2">
-                            <div className="flex items-start gap-2.5 group">
-                              <div className="w-7 h-7 rounded-full bg-slate-700 text-white font-bold flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
-                                {comment.author.fullName.charAt(0)}
-                              </div>
-                              <div className="flex-1 bg-muted/60 rounded-2xl px-3.5 py-2.5 text-xs text-foreground space-y-1">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-1.5 font-bold">
-                                    <span>{comment.author.fullName}</span>
-                                    <span
-                                      className={`text-[9px] px-1.5 py-0.2 rounded uppercase font-semibold border ${getRoleBadgeVariant(
-                                        comment.author.role,
-                                      )}`}
-                                    >
-                                      {comment.author.role}
-                                    </span>
-                                  </div>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {formatTimeAgo(comment.createdAt)}
-                                  </span>
+                      <div className="space-y-3 pt-1">
+                        {post.comments.map((comment) => {
+                          const isCommentLiked = likedCommentIds.has(comment.id);
+
+                          return (
+                            <div key={comment.id} className="space-y-1.5">
+                              <div className="flex items-start gap-2.5 group">
+                                <div className="w-8 h-8 rounded-full bg-slate-700 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">
+                                  {comment.author.fullName.charAt(0)}
                                 </div>
-                                <p className="text-sm leading-snug">{comment.content}</p>
-                              </div>
+                                <div className="flex-1">
+                                  {/* Speech Bubble */}
+                                  <div className="bg-[#F0F2F5] dark:bg-[#3A3B3C] rounded-[18px] px-3.5 py-2 inline-block max-w-[92%] relative">
+                                    <h5 className="font-semibold text-[13px] text-[#050505] dark:text-[#E4E6EB] hover:underline cursor-pointer">
+                                      {comment.author.fullName}
+                                    </h5>
+                                    <p className="text-[14px] leading-snug text-[#050505] dark:text-[#E4E6EB] mt-0.5 break-words">
+                                      {comment.content}
+                                    </p>
 
-                              {/* Comment Actions */}
-                              <div className="flex items-center gap-1 self-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setActiveReplyTo((prev) => ({
-                                      ...prev,
-                                      [post.id]: comment.id,
-                                    }))
-                                  }
-                                  className="text-[11px] text-muted-foreground hover:text-indigo-500 font-medium px-1"
-                                >
-                                  Reply
-                                </button>
-                                {comment.canDelete && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteComment(post.id, comment.id)}
-                                    className="text-muted-foreground hover:text-rose-500 p-1"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
+                                    {/* Floating reaction badge if liked */}
+                                    {isCommentLiked && (
+                                      <span className="absolute -bottom-2 -right-1 bg-white dark:bg-[#242526] border border-gray-200 dark:border-neutral-700 rounded-full px-1 py-0.2 shadow-xs flex items-center gap-0.5 text-[10px]">
+                                        👍 1
+                                      </span>
+                                    )}
+                                  </div>
 
-                            {/* Nested Replies */}
-                            {comment.replies && comment.replies.length > 0 && (
-                              <div className="ml-9 pl-3 border-l-2 border-border/50 space-y-2 pt-1">
-                                {comment.replies.map((reply) => (
-                                  <div key={reply.id} className="flex items-start gap-2 group">
-                                    <div className="w-6 h-6 rounded-full bg-slate-800 text-white font-bold flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
-                                      {reply.author.fullName.charAt(0)}
-                                    </div>
-                                    <div className="flex-1 bg-muted/40 rounded-xl px-3 py-2 text-xs text-foreground space-y-0.5">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-1 font-bold">
-                                          <span>{reply.author.fullName}</span>
-                                          <span
-                                            className={`text-[8px] px-1 rounded uppercase font-semibold border ${getRoleBadgeVariant(
-                                              reply.author.role,
-                                            )}`}
-                                          >
-                                            {reply.author.role}
-                                          </span>
-                                        </div>
-                                        <span className="text-[10px] text-muted-foreground">
-                                          {formatTimeAgo(reply.createdAt)}
-                                        </span>
-                                      </div>
-                                      <p className="text-xs leading-snug">{reply.content}</p>
-                                    </div>
-                                    {reply.canDelete && (
+                                  {/* Sub-actions Row Under Bubble */}
+                                  <div className="flex items-center gap-3 text-[12px] font-semibold text-[#65676B] dark:text-[#B0B3B8] ml-3 mt-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleCommentLike(comment.id)}
+                                      className={`hover:underline cursor-pointer ${
+                                        isCommentLiked ? "text-[#1877F2]" : ""
+                                      }`}
+                                    >
+                                      Like
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setActiveReplyTo((prev) => ({
+                                          ...prev,
+                                          [post.id]: comment.id,
+                                        }))
+                                      }
+                                      className="hover:underline cursor-pointer"
+                                    >
+                                      Reply
+                                    </button>
+                                    <span className="font-normal">
+                                      {formatTimeAgo(comment.createdAt)}
+                                    </span>
+                                    {comment.canDelete && (
                                       <button
                                         type="button"
-                                        onClick={() => handleDeleteComment(post.id, reply.id)}
-                                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-rose-500 p-1"
+                                        onClick={() =>
+                                          handleDeleteComment(post.id, comment.id)
+                                        }
+                                        className="text-[#65676B] hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
                                       >
                                         <Trash2 className="w-3 h-3" />
                                       </button>
                                     )}
                                   </div>
-                                ))}
+                                </div>
                               </div>
-                            )}
-                          </div>
-                        ))}
+
+                              {/* Nested Replies with Facebook connector indentation */}
+                              {comment.replies && comment.replies.length > 0 && (
+                                <div className="ml-10 pl-3 border-l-2 border-gray-200 dark:border-neutral-700 space-y-2 pt-1">
+                                  {comment.replies.map((reply) => {
+                                    const isReplyLiked = likedCommentIds.has(reply.id);
+
+                                    return (
+                                      <div
+                                        key={reply.id}
+                                        className="flex items-start gap-2 group"
+                                      >
+                                        <div className="w-6 h-6 rounded-full bg-slate-800 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                                          {reply.author.fullName.charAt(0)}
+                                        </div>
+                                        <div className="flex-1">
+                                          <div className="bg-[#F0F2F5] dark:bg-[#3A3B3C] rounded-[16px] px-3 py-1.5 inline-block max-w-[92%] relative">
+                                            <h6 className="font-semibold text-[12px] text-[#050505] dark:text-[#E4E6EB]">
+                                              {reply.author.fullName}
+                                            </h6>
+                                            <p className="text-[13px] text-[#050505] dark:text-[#E4E6EB] mt-0.5 leading-snug">
+                                              {reply.content}
+                                            </p>
+                                            {isReplyLiked && (
+                                              <span className="absolute -bottom-2 -right-1 bg-white dark:bg-[#242526] border border-gray-200 dark:border-neutral-700 rounded-full px-1 py-0.2 shadow-xs flex items-center gap-0.5 text-[9px]">
+                                                👍 1
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-3 text-[11px] text-[#65676B] dark:text-[#B0B3B8] ml-3 mt-0.5 font-semibold">
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                handleToggleCommentLike(reply.id)
+                                              }
+                                              className={`hover:underline cursor-pointer ${
+                                                isReplyLiked ? "text-[#1877F2]" : ""
+                                              }`}
+                                            >
+                                              Like
+                                            </button>
+                                            <span className="font-normal">
+                                              {formatTimeAgo(reply.createdAt)}
+                                            </span>
+                                            {reply.canDelete && (
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  handleDeleteComment(post.id, reply.id)
+                                                }
+                                                className="text-[#65676B] hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                              >
+                                                <Trash2 className="w-2.5 h-2.5" />
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground italic py-1">
-                        No comments yet. Start the conversation!
+                      <p className="text-xs text-[#65676B] dark:text-[#B0B3B8] italic py-1 px-1">
+                        No comments yet. Write the first comment!
                       </p>
                     )}
                   </div>
@@ -1142,26 +1205,283 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
         </div>
       )}
 
-      {/* 5. Edit Post Modal (Flow 7 & Flow 8) */}
+      {/* ============================================================== */}
+      {/* 3. FACEBOOK "CREATE POST" MODAL DIALOG                         */}
+      {/* ============================================================== */}
+      {composerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#242526] border border-gray-200 dark:border-neutral-700 rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 space-y-0">
+            {/* Modal Header */}
+            <div className="relative px-5 py-3.5 border-b border-gray-200 dark:border-neutral-700 text-center">
+              <h3 className="text-base font-bold text-[#050505] dark:text-[#E4E6EB]">
+                Create post
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setComposerOpen(false);
+                  setNewContent("");
+                  setSelectedFiles([]);
+                  setFilePreviews([]);
+                  setSelectedBgStyle("none");
+                }}
+                className="absolute right-3.5 top-3 w-8 h-8 rounded-full bg-gray-100 dark:bg-[#3A3B3C] hover:bg-gray-200 dark:hover:bg-neutral-600 flex items-center justify-center text-[#65676B] dark:text-[#B0B3B8] transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePost} className="p-4 space-y-3.5">
+              {/* Author & Audience Pill Selector */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                  {user?.fullName?.charAt(0) || "U"}
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-[#050505] dark:text-[#E4E6EB] leading-none">
+                    {user?.fullName || "Faculty Member"}
+                  </h4>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* Audience Selector */}
+                    <div className="inline-flex items-center gap-1 bg-gray-100 dark:bg-[#3A3B3C] px-2 py-0.5 rounded-md text-xs font-semibold text-[#65676B] dark:text-[#B0B3B8] border border-gray-200 dark:border-neutral-700">
+                      {newVisibility === "public" ? (
+                        <Globe className="w-3 h-3 text-emerald-500" />
+                      ) : newVisibility === "campus" ? (
+                        <Building className="w-3 h-3 text-[#1877F2]" />
+                      ) : (
+                        <Lock className="w-3 h-3 text-amber-500" />
+                      )}
+                      <select
+                        value={newVisibility}
+                        onChange={(e) => setNewVisibility(e.target.value as any)}
+                        className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer"
+                      >
+                        {isMultiCampus && (
+                          <option value="public">Public (All Campuses)</option>
+                        )}
+                        <option value="campus">Campus Community</option>
+                        <option value="private">Only Me</option>
+                      </select>
+                    </div>
+
+                    {/* School selector if multi-campus */}
+                    {isMultiCampus && newVisibility === "campus" && (
+                      <select
+                        value={newSchoolId}
+                        onChange={(e) => setNewSchoolId(e.target.value)}
+                        className="text-xs bg-gray-100 dark:bg-[#3A3B3C] border border-gray-200 dark:border-neutral-700 rounded-md px-2 py-0.5 font-semibold text-[#65676B] dark:text-[#B0B3B8]"
+                      >
+                        <option value="">Default School</option>
+                        {schools.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Text Input Area (Supports Colored Backgrounds) */}
+              <div
+                className={`relative rounded-xl transition-all ${
+                  selectedBgStyle !== "none"
+                    ? POST_BACKGROUNDS.find((b) => b.id === selectedBgStyle)?.class
+                    : ""
+                }`}
+              >
+                <textarea
+                  placeholder={`What's on your mind, ${
+                    user?.fullName?.split(" ")[0] || "Faculty"
+                  }?`}
+                  value={newContent}
+                  onChange={(e) => setNewContent(e.target.value)}
+                  className={`w-full bg-transparent resize-none focus:outline-none placeholder:text-[#65676B] dark:placeholder:text-[#B0B3B8] ${
+                    selectedBgStyle !== "none"
+                      ? "text-center text-white placeholder:text-white/70 text-xl font-bold min-h-[140px]"
+                      : "min-h-[100px] text-base text-[#050505] dark:text-[#E4E6EB]"
+                  }`}
+                  autoFocus
+                />
+              </div>
+
+              {/* Background Color Picker Palette (Aa Button) */}
+              {filePreviews.length === 0 && (
+                <div className="flex items-center gap-1.5 pt-1">
+                  <span className="text-xs font-semibold text-[#65676B] dark:text-[#B0B3B8] mr-1">
+                    Theme:
+                  </span>
+                  {POST_BACKGROUNDS.map((bg) => (
+                    <button
+                      key={bg.id}
+                      type="button"
+                      onClick={() => setSelectedBgStyle(bg.id)}
+                      className={`w-6 h-6 rounded-md border transition-transform ${
+                        bg.id === "none"
+                          ? "bg-gray-100 dark:bg-neutral-800 border-gray-300 dark:border-neutral-600"
+                          : bg.id === "ocean"
+                          ? "bg-gradient-to-tr from-blue-600 to-cyan-500 border-blue-400"
+                          : bg.id === "sunset"
+                          ? "bg-gradient-to-tr from-rose-500 to-yellow-400 border-amber-400"
+                          : bg.id === "berry"
+                          ? "bg-gradient-to-tr from-purple-800 to-pink-600 border-purple-400"
+                          : bg.id === "emerald"
+                          ? "bg-gradient-to-tr from-emerald-700 to-teal-400 border-emerald-400"
+                          : "bg-gradient-to-tr from-red-600 to-amber-500 border-red-400"
+                      } ${
+                        selectedBgStyle === bg.id
+                          ? "scale-115 ring-2 ring-[#1877F2]"
+                          : "hover:scale-105"
+                      }`}
+                      title={bg.label}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Media Previews Grid */}
+              {filePreviews.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 max-h-48 overflow-y-auto">
+                  {filePreviews.map((f, i) => (
+                    <div
+                      key={i}
+                      className="relative group aspect-video rounded-xl overflow-hidden border border-gray-200 dark:border-neutral-700 bg-black/5"
+                    >
+                      <img
+                        src={f.url}
+                        alt={f.name}
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeFile(i)}
+                        className="absolute top-1.5 right-1.5 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-full opacity-90 group-hover:opacity-100 transition-all"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* "Add to your post" Facebook Toolbar Capsule */}
+              <div className="flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-neutral-700 shadow-xs bg-gray-50/50 dark:bg-neutral-800/30">
+                <span className="text-xs font-semibold text-[#050505] dark:text-[#E4E6EB]">
+                  Add to your post
+                </span>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-700 text-[#45BD62] transition-colors"
+                    title="Photo/video"
+                  >
+                    <ImageIcon className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toast.info("Faculty tagging active in composer")}
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-700 text-[#1877F2] transition-colors"
+                    title="Tag faculty"
+                  >
+                    <Users className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toast.info("Feeling/activity badge added")}
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-700 text-[#F7B125] transition-colors"
+                    title="Feeling/activity"
+                  >
+                    <Smile className="w-5 h-5" />
+                  </button>
+
+                  {isMultiCampus && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAnnouncement((prev) => !prev)}
+                      className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors ${
+                        isAnnouncement ? "text-rose-500 bg-rose-500/10" : "text-[#65676B] dark:text-[#B0B3B8]"
+                      }`}
+                      title="Official announcement"
+                    >
+                      <Megaphone className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Admin Moderation Extras */}
+              {isMultiCampus && (
+                <div className="flex items-center gap-4 text-xs font-semibold text-[#65676B] dark:text-[#B0B3B8] px-1">
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isPinned}
+                      onChange={(e) => setIsPinned(e.target.checked)}
+                      className="rounded border-gray-300 text-[#1877F2] focus:ring-[#1877F2]"
+                    />
+                    <span className="flex items-center gap-1">
+                      <Pin className="w-3 h-3 text-amber-500" /> Pin post to top
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              {/* Full Width Facebook Blue "Post" Button */}
+              <Button
+                type="submit"
+                disabled={submitting || (!newContent.trim() && selectedFiles.length === 0)}
+                className="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white font-bold py-2.5 rounded-xl shadow-md disabled:opacity-50 transition-all text-sm"
+              >
+                {submitting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                    Publishing to feed...
+                  </>
+                ) : (
+                  "Post"
+                )}
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 4. EDIT POST MODAL                                             */}
+      {/* ============================================================== */}
       {editingPost && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <h3 className="text-lg font-bold flex items-center gap-2">
-                <Edit2 className="w-4 h-4 text-primary" />
+          <div className="bg-white dark:bg-[#242526] border border-gray-200 dark:border-neutral-700 rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-neutral-700">
+              <h3 className="text-base font-bold flex items-center gap-2 text-[#050505] dark:text-[#E4E6EB]">
+                <Edit2 className="w-4 h-4 text-[#1877F2]" />
                 Edit Post
               </h3>
               <button
                 type="button"
                 onClick={() => setEditingPost(null)}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-[#65676B] dark:text-[#B0B3B8] hover:text-[#050505]"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-3">
-              <label className="text-xs font-semibold text-muted-foreground">Content</label>
+              <label className="text-xs font-semibold text-[#65676B] dark:text-[#B0B3B8]">
+                Post Content
+              </label>
               <Textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
@@ -1169,25 +1489,30 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
               />
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-muted-foreground">Visibility</label>
+                <label className="text-xs font-semibold text-[#65676B] dark:text-[#B0B3B8]">
+                  Audience Scope
+                </label>
                 <select
                   value={editVisibility}
                   onChange={(e) => setEditVisibility(e.target.value as any)}
-                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm"
+                  className="w-full bg-white dark:bg-[#242526] border border-gray-200 dark:border-neutral-700 rounded-xl px-3 py-2 text-sm"
                 >
-                  {isMultiCampus && <option value="public">All Campuses (Public)</option>}
+                  {isMultiCampus && (
+                    <option value="public">Public (All Campuses)</option>
+                  )}
                   <option value="campus">Campus Community</option>
-                  <option value="private">Private (Author Only)</option>
+                  <option value="private">Only Me</option>
                 </select>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-200 dark:border-neutral-700">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setEditingPost(null)}
                 disabled={savingEdit}
+                className="rounded-xl"
               >
                 Cancel
               </Button>
@@ -1195,35 +1520,37 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                 size="sm"
                 onClick={handleSaveEdit}
                 disabled={savingEdit}
-                className="bg-primary text-primary-foreground"
+                className="bg-[#1877F2] hover:bg-[#166FE5] text-white rounded-xl px-5"
               >
-                {savingEdit ? "Saving..." : "Save Changes"}
+                {savingEdit ? "Saving..." : "Save changes"}
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 6. Delete Confirm Modal (Flow 5 & Flow 6) */}
+      {/* ============================================================== */}
+      {/* 5. DELETE CONFIRM MODAL                                        */}
+      {/* ============================================================== */}
       {deletingPostId && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95">
+          <div className="bg-white dark:bg-[#242526] border border-gray-200 dark:border-neutral-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95">
             <div className="flex items-center gap-3 text-rose-500">
               <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center">
                 <AlertCircle className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground">Delete Feed Post</h3>
-                <p className="text-xs text-muted-foreground">
-                  {isMultiCampus
-                    ? "Administrative Moderation Action"
-                    : "Confirm removal from feed"}
+                <h3 className="text-base font-bold text-[#050505] dark:text-[#E4E6EB]">
+                  Move to trash?
+                </h3>
+                <p className="text-xs text-[#65676B] dark:text-[#B0B3B8]">
+                  Permanent removal from feed
                 </p>
               </div>
             </div>
 
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to permanently remove this post and all of its comments? This action cannot be undone.
+            <p className="text-sm text-[#65676B] dark:text-[#B0B3B8]">
+              Are you sure you want to permanently delete this post and all of its comments? This action cannot be undone.
             </p>
 
             <div className="flex items-center justify-end gap-2 pt-3">
@@ -1232,6 +1559,7 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                 size="sm"
                 onClick={() => setDeletingPostId(null)}
                 disabled={deleting}
+                className="rounded-xl"
               >
                 Cancel
               </Button>
@@ -1240,38 +1568,38 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
                 size="sm"
                 onClick={handleConfirmDeletePost}
                 disabled={deleting}
+                className="rounded-xl"
               >
-                {deleting ? "Deleting..." : "Confirm Delete"}
+                {deleting ? "Deleting..." : "Delete Post"}
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 7. Image Lightbox Modal */}
+      {/* ============================================================== */}
+      {/* 6. IMAGE LIGHTBOX MODAL                                        */}
+      {/* ============================================================== */}
       {lightboxOpen && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 select-none">
-          {/* Close button */}
           <button
             type="button"
             onClick={() => setLightboxOpen(false)}
-            className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full transition-colors z-10"
+            className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-full transition-colors z-10"
           >
             <X className="w-6 h-6" />
           </button>
 
-          {/* Download button */}
           <a
             href={lightboxImages[lightboxIndex]}
             download
             target="_blank"
             rel="noreferrer"
-            className="absolute top-4 right-16 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full transition-colors z-10"
+            className="absolute top-4 right-16 bg-white/10 hover:bg-white/20 text-white p-2.5 rounded-full transition-colors z-10"
           >
             <Download className="w-6 h-6" />
           </a>
 
-          {/* Navigation buttons */}
           {lightboxImages.length > 1 && (
             <>
               <button
@@ -1291,7 +1619,6 @@ export function FeedView({ initialFilter = "all" }: FeedViewProps) {
             </>
           )}
 
-          {/* Image display */}
           <div className="max-w-4xl max-h-[85vh] flex flex-col items-center justify-center">
             <img
               src={lightboxImages[lightboxIndex]}
