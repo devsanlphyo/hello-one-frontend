@@ -17,6 +17,11 @@ export interface AuthUser {
   status: string;
   avatarUrl?: string | null;
   schoolId?: string | null;
+  school?: {
+    id: string;
+    name: string;
+    code?: string;
+  } | null;
 }
 
 interface AuthContextValue {
